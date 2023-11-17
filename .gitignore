@@ -118,3 +118,7 @@ torchenv2/
 # intellij
 .idea
 *.iml
+
+# Sample data
+mirai_demo_data.zip
+**/mirai_demo_data
