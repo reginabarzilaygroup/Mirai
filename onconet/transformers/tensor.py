@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import torchvision
 import torch
 from onconet.transformers.factory import RegisterTensorTransformer
@@ -14,11 +16,13 @@ class Normalize_Tensor_2d(Abstract_transformer):
     def __init__(self, args, kwargs):
         super(Normalize_Tensor_2d, self).__init__()
         assert len(kwargs) == 0
-        channel_means = [args.img_mean] if len(args.img_mean) == 1 else args.img_mean
-        channel_stds = [args.img_std] if len(args.img_std) == 1 else args.img_std
+        err_msg = """{input_name} must be a sequence of the same 
+        length as expected channels. Note that a length-1 list will not be repeated, 
+        it will only be applied to the first channel."""
+        assert isinstance(args.img_mean, Sequence), err_msg.format(input_name="args.img_mean")
+        assert isinstance(args.img_std, Sequence), err_msg.format(input_name="args.img_std")
 
-        self.transform = torchvision.transforms.Normalize(torch.Tensor(channel_means),
-                                                          torch.Tensor(channel_stds))
+        self.transform = torchvision.transforms.Normalize(args.img_mean, args.img_std)
 
     def __call__(self, img, additional=None):
         return self.transform(img)
@@ -28,7 +32,7 @@ class Normalize_Tensor_2d(Abstract_transformer):
 class CutOut(Abstract_transformer):
     '''
         Randomly sets a patch to black.
-        size of patch will be decided by the 'h' and 'w' kwargs. Done with probablity p
+        size of patch will be decided by the 'h' and 'w' kwargs. Done with probability p
         From: https://arxiv.org/pdf/1708.04552.pdf
     '''
 

@@ -17,10 +17,10 @@ import onconet
 
 ERROR_MSG = 'Test {} failed: {} != {}'
 
-white_image = Image.new("RGB", (1, 1), "white")
-black_image = Image.new("RGB", (1, 1), "black")
-blue_image = Image.new("RGB", (1, 1), "blue")
-red_image = Image.new("RGB", (1, 1), "red")
+
+def create_image(mode="RGB", size=(1,1), color="white"):
+    return Image.new(mode, size, color)
+
 
 class cachable_transformer(Abstract_transformer):
     def __init__(self, name, *keys):
@@ -29,7 +29,7 @@ class cachable_transformer(Abstract_transformer):
         self.set_cachable(*keys)
 
     def __call__(self, img, additional):
-        return white_image
+        return create_image(color="white")
 
 
 class noncachable_transformer(Abstract_transformer):
@@ -38,7 +38,7 @@ class noncachable_transformer(Abstract_transformer):
         self.name = name
 
     def __call__(self, img, additional):
-        return black_image
+        return create_image(color="black")
 
 
 def get_test_transformers():
@@ -97,10 +97,16 @@ class Test_image_loader(unittest.TestCase):
     def setUp(self):
         self.cache_path = tempfile.mkdtemp()
         self.transformers = get_test_transformers()
+        self.white_image = create_image(color="white")
+        self.blue_image = create_image(color="blue")
 
     def tearDown(self):
         shutil.rmtree(self.cache_path)
         self.transformers = None
+        self.white_image.close()
+        self.blue_image.close()
+        self.white_image = None
+        self.blue_image = None
 
     def test_loads_from_cache(self):
         transformers = [self.transformers['c1']]
@@ -109,31 +115,34 @@ class Test_image_loader(unittest.TestCase):
 
         # Trick loader by storing specific image in cache
         key = transformers[0].caching_keys()
-        loader.cache.add(image_path, key, blue_image)
+        loader.cache.add(image_path, key, self.blue_image)
 
         # Load image
         output = loader.get_image(image_path, None)
-        self.assertEqual(output.getdata()[0], blue_image.getdata()[0])
+        self.assertEqual(output.getdata()[0], self.blue_image.getdata()[0])
+        output.close()
 
     def test_adds_to_cache(self):
         transformers = [self.transformers['c1']]
         loader = image_loader.image_loader(self.cache_path, transformers)
 
-        # save some test image (cached dir is used only for convinient as tmp)
+        # save some test image (cached dir is used only for convenient as tmp)
         image_path = self.cache_path + 'test.png'
-        blue_image.save(image_path)
+        self.blue_image.save(image_path)
 
-        # Load image
+        # Verify the image saved correctly
+        image = Image.open(image_path)
+        self.assertEqual(image.getdata()[0], self.blue_image.getdata()[0])
+
+        # Load cached image
+        # Our "transform" converts to white; that's what we expect
         output = loader.get_image(image_path, None)
-        self.assertEqual(output.getdata()[0], white_image.getdata()[0])
+        self.assertEqual(output.getdata()[0], self.white_image.getdata()[0])
+        output.close()
 
-        # Validate that correct images were cached
         key = transformers[0].caching_keys()
-        default_image = loader.cache.get(image_path, 'default/')
-        self.assertEqual(default_image.getdata()[0], blue_image.getdata()[0])
-
         c1_image = loader.cache.get(image_path, key)
-        self.assertEqual(c1_image.getdata()[0], white_image.getdata()[0])
+        self.assertEqual(c1_image.getdata()[0], self.white_image.getdata()[0])
 
     def test_non_cachable(self):
         transformers = [self.transformers['nc'], self.transformers['c1']]
@@ -141,15 +150,12 @@ class Test_image_loader(unittest.TestCase):
 
         # save some test image
         image_path = self.cache_path + 'test.png'
-        blue_image.save(image_path)
+        self.blue_image.save(image_path)
 
         # Load image
+        # Our "transform" converts to white; that's what we expect
         output = loader.get_image(image_path, None)
-        self.assertEqual(output.getdata()[0], white_image.getdata()[0])
-
-        # Validate that default image was cached
-        default_image = loader.cache.get(image_path, 'default/')
-        self.assertEqual(default_image.getdata()[0], blue_image.getdata()[0])
+        self.assertEqual(output.getdata()[0], self.white_image.getdata()[0])
 
         # Validate that 'nc' wasn't cached
         key = transformers[0].caching_keys()

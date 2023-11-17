@@ -13,7 +13,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import onconet.transformers.image as ti
 import onconet.transformers.tensor as tt
 
-class Args():
+
+class Args:
     pass
 
 
@@ -21,6 +22,7 @@ class TestTransformers(unittest.TestCase):
     ''' Test suite for the transformers/image and transformers/tensor modules.'''
     def setUp(self):
         self.args = Args()
+        self.args.use_region_annotation = False
         self.kwargs = {}
         self.red_pixel = (255, 0, 0)
         self.green_pixel = (0, 255, 0)
@@ -109,13 +111,21 @@ class TestTransformers(unittest.TestCase):
 
     def test_tensor_normalize_tensor_2d(self):
         ''' Test normalizing a tensor with a certain mean and a certain std deviation.'''
-        self.args.img_mean = 2
-        self.args.img_std = 2
-        tensor = torch.IntTensor([[[4, 4, 4], [6, 6, 6]], [[8, 8, 8], [10, 10, 10]]])
-        normalizer = tt.Normalize_Tensor_2d(self.args, self.kwargs)
+        args1 = Args()
+        args1.img_mean = [2., 2.]
+        args1.img_std = [2., 2.]
+
+        expected = torch.FloatTensor([[[1, 1, 1], [2, 2, 2]], [[3, 3, 3], [4, 4, 4]]]).numpy()
+        tensor = torch.FloatTensor([[[4, 4, 4], [6, 6, 6]], [[8, 8, 8], [10, 10, 10]]])
+        normalizer = tt.Normalize_Tensor_2d(args1, self.kwargs)
         output = normalizer(tensor, None).numpy()
-        expected = torch.IntTensor([[[1, 1, 1], [2, 2, 2]], [[3, 3, 3], [4, 4, 4]]]).numpy()
         self.assertTrue(np.array_equal(expected, output))
+
+        args2 = Args()
+        args2.img_mean = 2.
+        args2.img_std = [2., 2.]
+        with self.assertRaises(AssertionError):
+            normalizer = tt.Normalize_Tensor_2d(args2, self.kwargs)
 
 
 if __name__ == '__main__':
