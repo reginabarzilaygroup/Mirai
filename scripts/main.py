@@ -28,7 +28,7 @@ if __name__ == '__main__':
     repo = git.Repo(search_parent_directories=True)
     commit  = repo.head.object
     args.commit = commit.hexsha
-    print("OncoNet main running from commit: \n\n{}\n{}author: {}, date: {}".format(
+    print("Mirai main running from commit: \n\n{}\n{}author: {}, date: {}".format(
         commit.hexsha, commit.message, commit.author, commit.committed_date))
 
     if args.get_dataset_stats:

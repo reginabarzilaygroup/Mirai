@@ -1,3 +1,4 @@
+pandas==1.4.3
 gitpython==3.1.26
 imageio==2.13.1
 lifelines==0.24.15
