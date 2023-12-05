@@ -10,23 +10,24 @@ This code base is meant to achieve a few goals:
 - Help researchers to fine-tune Mirai on large datasets
 
 We note that this code-base is an extension of [OncoNet](https://github.com/yala/OncoNet_Public), which we used to develop Hybrid DL and ImageOnly DL.
+Mirai is designed to operate in bulk, on PNG images. For a conversion toolkit, see [OncoData](https://github.com/reginabarzilaygroup/OncoData_Public)
 
-## Aside on Software Depedencies
-This code assumes python3.6 and a Linux environment.
-The package requirements can be install with pip:
+## Aside on Software Dependencies
+This code assumes python3.8 and a Linux environment.
+The package requirements can be installed with pip:
 
 `pip install -r requirements.txt`
 
-If you are familiar with docker, you can also directly leverage the OncoServe [Mirai docker container](https://www.dropbox.com/s/k0wq2z7xqr95y3b/oncoserve_mirai.0.5.0.tar?dl=0) which has all the depedencies preinstalled and the trained Mirai model (see below).
+If you are familiar with docker, you can also directly leverage the [Ark docker container](https://hub.docker.com/r/mitjclinic/mirai) which has all the dependencies preinstalled and the trained Mirai model (see below).
 
 ## Preprocessing
 Our code-base operates on PNG images. We converted presentation view dicoms to PNG16 files using the DCMTK library. We used the dcmj2pnm program (v3.6.1, 2015) with +on2 and–min-max-window flags. To this, you can use DCMTK directly or [OncoData](https://github.com/yala/OncoData_Public), our python wrapper for converting dicoms.
 
 ## Inclusion Criteria
-Mirai expects all four standard “For Presentation” views of the mammogram.  Specifically, it requires an “L CC”, “L MLO”, “R CC”, “R MLO”. It will not work without all four views or with “For Processing” mammograms.  As a result, we unfortunately cannot provide risk assessments for patients with only non-standard views or unilateral mammograms. Moreover, we cannot run the model on marked up images (i.e images with some CAD or human annotations).  All of the mammograms used in our study were captured using either the Hologic Selenia or Selenia Dimensions mammography devices. We have yet tested Mirai on other machines.
+Mirai expects all four standard “For Presentation” views of the mammogram.  Specifically, it requires an “L CC”, “L MLO”, “R CC”, “R MLO”. It will not work without all four views or with “For Processing” mammograms.  As a result, we unfortunately cannot provide risk assessments for patients with only non-standard views or unilateral mammograms. Moreover, we cannot run the model on marked up images (i.e. images with some CAD or human annotations).  All of the mammograms used in our study were captured using either the Hologic Selenia or Selenia Dimensions mammography devices. We have yet tested Mirai on other machines.
 
 # Reproducing Mirai
-As described in the supplementary material of the paper, Mirai was trained in two phases; first, we trained the image encoder in conjunction with the risk factor predictor and additive hazard layer to predict breast cancer independently from each view without using conditional adversarial training. In this stage, we intialialized our image encoder with weights from ImageNet, and augmented our training set with random flips and rotations of the original images. We found that adding an adversarial loss at this stage or training the whole architecture end-to-end prevented the model from converging. In the second stage of training, we froze our image encoder, and trained the image aggregation module, the risk factor prediction module, the additive hazard layer, and the device discriminator in a conditional adversarial training regime. We trained our adversary for three steps for every one step of training Mirai. In each stage, we performed small hyperparameter searches and chose the model that obtained the highest C-index on the development set.
+As described in the supplementary material of the paper, Mirai was trained in two phases; first, we trained the image encoder in conjunction with the risk factor predictor and additive hazard layer to predict breast cancer independently from each view without using conditional adversarial training. In this stage, we initialized our image encoder with weights from ImageNet, and augmented our training set with random flips and rotations of the original images. We found that adding an adversarial loss at this stage or training the whole architecture end-to-end prevented the model from converging. In the second stage of training, we froze our image encoder, and trained the image aggregation module, the risk factor prediction module, the additive hazard layer, and the device discriminator in a conditional adversarial training regime. We trained our adversary for three steps for every one step of training Mirai. In each stage, we performed small hyperparameter searches and chose the model that obtained the highest C-index on the development set.
 
 The grid searches are shown in :
 
@@ -36,7 +37,7 @@ The grid searches were run using our job-dispatcher, as shown bellow.
 
 `python scripts/dispatcher.py --experiment_config_path configs/mirai_base.json --result_path mirai_base_sweep.csv`
 
-We selected the image encoder with the highest C-index on the development set, and leveraged it for the second stage hyper-parameter sweep.
+We selected the image encoder with the highest C-index on the development set, and leveraged it for the second stage hyperparameter sweep.
 
 `python scripts/dispatcher.py --experiment_config_path configs/mirai_full.json --result_path mirai_full_sweep.csv`
 
@@ -46,24 +47,7 @@ We note that this command run relies on integrations that were specific to the M
 Mirai (the trained model) and all code are released under the MIT license. 
 
 ## Installing Mirai for clinical use
-Please see [OncoServe](https://github.com/yala/OncoServe_Public), our framework for deploying mammography-based models in the clinic. OncoServe can be easily installed on premise using Docker, and it provides a simple HTTP interface to get risk assessments for a given patient's dicom files. OncoServe encapsulates all the dependencies and necessary preprocessing.
-
-## Using Mirai Codebase (Validation / Finetuning)
-
-To use the Mirai code-base, we recommend using our [OncoServe](https://github.com/yala/OncoServe_Public) docker image. Please directly reach out for access. Once you have the docker image, you may enter it as follows:
-
-```
-docker run -it -v /PATH/TO/DATA_DIR:/data:z learn2cure/oncoserve_mirai:0.5.0 /bin/zsh
-```
-This command will enter the docker container and make your data directory (with dicoms and outcomes) available to the container at the /data directory. Inside the docker container, you will find this repository in the `/root/OncoNet/` directory. For there, you can run the validation or fine tuning scripts. 
-
-### Preprocessing DICOMS with OncoData
-The `oncoserve_mirai` docker image already contains [OncoData](https://github.com/yala/OncoData_Public), our codebase for preprocessing dicoms. To convert a directory of dicoms into PNGs, follow the following steps:
-```
-cd /root/OncoData
-python scripts/dicom_to_png/dicom_to_png.py --dcmtk --dicom_dir /PATH/TO/DICOMS --png_dir /PATH/TO/PNG_DIR 
-```
-Note, OncoData assumes that each dicom file has a `.dcm` suffix. This repo is tested to work well with Hologic dicoms, but may not properly convert dicoms from other manufacturers. 
+Please see [Ark](https://github.com/reginabarzilaygroup/ark), our framework for deploying mammography-based models in the clinic. Ark can be easily installed on premise using Docker, and it provides a simple HTTP interface to get risk assessments for a given patient's dicom files. Ark encapsulates all the dependencies and necessary preprocessing.
 
 ### How validate the model on a large dataset
 To validate Mirai, you can use the following command: `sh demo/validate.sh`
@@ -103,7 +87,7 @@ The full bash command (inside the validate.sh file) is:
 python scripts/dispatcher.py --experiment_config_path configs/fine_tune_mirai.json --result_path finetune_results.csv
 ```
 
-It create a grid search over possible fine-tuning hyperparameters (see `configs/finetune_mirai.json`) and launches jobs across the available GPUs (as defined in `available_gpus`). The results will be summarized in `finetune_results.csv` or wherever you set `results_path`. We note that each job launches just just a shell command. By editing `configs/finetune_mirai.json` or creating your own config json file, you can explore any hyper-parameters or architecture supported in the code base.
+It creates a grid search over possible fine-tuning hyperparameters (see `configs/finetune_mirai.json`) and launches jobs across the available GPUs (as defined in `available_gpus`). The results will be summarized in `finetune_results.csv` or wherever you set `results_path`. We note that each job launches just a shell command. By editing `configs/finetune_mirai.json` or creating your own config json file, you can explore any hyperparameters or architecture supported in the code base.
 
 What finetune the model, you will need the same dependencies, preprocessing and CSV file as listed above to validate Mirai. We recommend you first evaluate Mirai before you try to finetune it.
 

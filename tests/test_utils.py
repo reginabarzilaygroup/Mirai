@@ -13,13 +13,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import onconet.utils.parsing as parsing
 import onconet.utils.generic as generic
-import onconet.train.state_keeper as state
+import onconet.learn.state_keeper as state
 import datetime
+
+# This model name is hardcoded in state_keeper
+MODEL_NAME = "model"
+
 
 class Test_parse_transformers(unittest.TestCase):
     def setUp(self):
-        self.err_msg = "Name of transformer or one of its arguments cant be empty\n\
-                  Use 'name/arg1=value/arg2=value' format"
+        self.err_msg = "Name of transformer or one of its arguments cant be empty"
 
     def tearDown(self):
         pass
@@ -54,7 +57,7 @@ class Test_parse_transformers(unittest.TestCase):
             output = parsing.parse_transformers(raw_transformers)
             self.assertEqual(output, expected)
 
-    def test_parse_transformers_unvalid(self):
+    def test_parse_transformers_invalid(self):
         raw_strings = [['/a=4'], ['t/'], ['t/=5']]
 
         for raw_transformers in raw_strings:
@@ -141,6 +144,7 @@ class Test_parse_dispatcher_config(unittest.TestCase):
             self.assertTrue(
                 self.err_msg.format(flag,
                                     config[flag]) in str(context.exception))
+
 
 class Test_generic_utils(unittest.TestCase):
     def setUp(self):
@@ -231,6 +235,7 @@ class Test_hashing(unittest.TestCase):
         self.assertEqual(hash1, hash2)
 
 class Test_state_keeping(unittest.TestCase):
+
     def setUp(self):
         self.parser = argparse.ArgumentParser(description='Test Parser')
         self.parser.add_argument('--firstname', default='John')
@@ -242,7 +247,9 @@ class Test_state_keeping(unittest.TestCase):
         self.lr = 0.001
         self.epoch_stats = {}
         self.model = models.resnet18()
+        self.models = {MODEL_NAME: self.model}
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr = 0.01, momentum=0.9)
+        self.optimizers = {MODEL_NAME: self.optimizer}
     
     def tearDown(self):
         args, unknown = self.parser.parse_known_args()
@@ -252,12 +259,15 @@ class Test_state_keeping(unittest.TestCase):
     def test_simple_model(self):
         args, unknown = self.parser.parse_known_args()
         state_keeper = state.StateKeeper(args)
+        state_keeper.args.use_adv = False
 
         model_dict = self.model.state_dict()
         optimizer_dict = self.optimizer.state_dict()
 
-        state_keeper.save(self.model, self.optimizer, self.epoch, self.lr, self.epoch_stats)
-        new_model, new_optimizer_state, new_epoch, new_lr, _ = state_keeper.load()
+        state_keeper.save(self.models, self.optimizers, self.epoch, self.lr, self.epoch_stats)
+        new_models, new_optimizer_states, new_epoch, new_lr, _ = state_keeper.load()
+        new_model = new_models[MODEL_NAME]
+        new_optimizer_state = new_optimizer_states[MODEL_NAME]
 
         for key in model_dict.keys():
             self.assertTrue(np.array_equal(model_dict[key].numpy(), new_model.state_dict()[key].numpy()))
