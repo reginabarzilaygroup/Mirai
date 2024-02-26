@@ -58,11 +58,12 @@ def inference(dicom_files: List[str], config_path: str, output_path=None, use_py
     payload = {"dcmtk": not use_pydicom}
     prediction = model.run_model(dicom_data_list, payload=payload)
 
-    print(f"{prediction}")
     if output_path is not None:
         logger.info(f"Saving prediction to {output_path}")
         with open(output_path, 'w') as f:
             json.dump(prediction, f, indent=2)
+
+    return prediction
 
 
 def logging_basic_config(args):
@@ -79,7 +80,8 @@ def main():
     args = _get_parser().parse_args()
     logging_basic_config(args)
 
-    inference(args.dicoms, args.config, args.output_path, args.use_pydicom)
+    prediction = inference(args.dicoms, args.config, args.output_path, args.use_pydicom)
+    print(prediction)
 
 
 if __name__ == "__main__":

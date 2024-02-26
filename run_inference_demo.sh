@@ -3,7 +3,7 @@
 # Run inference on the demo data
 # The output will be printed to the console
 # PyDicom is easier to install, (it's included in the requirements.txt),
-# you can use it by adding "--use-pydicom" to the command below
+# you can use it by including "--use-pydicom" in the command below
 
 # If you don't have dcmtk installed, you can install it with the following commands:
 # Linux: sudo apt-get install dcmtk
