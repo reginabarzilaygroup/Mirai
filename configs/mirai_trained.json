@@ -1,5 +1,5 @@
 {
-  "cuda": false,
+  "cuda": true,
   "img_mean": [
     7047.99
   ],

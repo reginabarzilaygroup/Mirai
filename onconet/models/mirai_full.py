@@ -118,20 +118,20 @@ class MiraiModel:
     def process_image_joint(self, batch, model, callibrator, risk_factor_vector=None):
         logger.debug("Getting predictions...")
 
-        # Apply transformers
-        x = batch['x']
-        risk_factors = autograd.Variable(risk_factor_vector.unsqueeze(0)) if risk_factor_vector is not None else None
-
         if self.args.cuda:
-            x = x.cuda()
-            model = model.cuda()
-            logger.debug("Inference with GPU")
+            device = get_default_device()
+            logger.debug(f"Inference with {device}")
+            for obj in [model, model.transformer]:
+                obj.to(device)
+            for key, val in batch.items():
+                batch[key] = val.to(device)
         else:
             model = model.cpu()
             logger.debug("Inference with CPU")
 
-        # Index 0 to toss batch dimension
-        logit, _, _ = model(x, risk_factors, batch)
+        risk_factors = autograd.Variable(risk_factor_vector.unsqueeze(0)) if risk_factor_vector is not None else None
+
+        logit, _, _ = model(batch['x'], risk_factors, batch)
         probs = F.sigmoid(logit).cpu().data.numpy()
         pred_y = np.zeros(probs.shape[1])
 
@@ -263,3 +263,17 @@ class MiraiModel:
         # Unzip file
         with zipfile.ZipFile(tmp_zip_path, 'r') as zip_ref:
             zip_ref.extractall(dest_dir)
+
+
+def get_default_device():
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    elif torch.backends.mps.is_available():
+        # Not all operations implemented in MPS yet
+        use_mps = os.environ.get("PYTORCH_ENABLE_MPS_FALLBACK", "0") == "1"
+        if use_mps:
+            return torch.device('mps')
+        else:
+            return torch.device('cpu')
+    else:
+        return torch.device('cpu')
