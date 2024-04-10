@@ -12,11 +12,17 @@ This code base is meant to achieve a few goals:
 We note that this code-base is an extension of [OncoNet](https://github.com/yala/OncoNet_Public), which we used to develop Hybrid DL and ImageOnly DL.
 Mirai is designed to operate in bulk, on PNG images. For a conversion toolkit, see [OncoData](https://github.com/reginabarzilaygroup/OncoData_Public)
 
+Also see the [wiki](https://github.com/reginabarzilaygroup/Mirai/wiki) for more information.
+
 ## Aside on Software Dependencies
 This code assumes python3.8 and a Linux environment.
-The package requirements can be installed with pip:
+The package can be installed with pip:
 
-`pip install -r requirements.txt`
+```bash
+git clone https://github.com/reginabarzilaygroup/Mirai
+cd Mirai
+pip install -e .
+```
 
 If you are familiar with docker, you can also directly leverage the [Ark docker container](https://hub.docker.com/r/mitjclinic/mirai) which has all the dependencies preinstalled and the trained Mirai model (see below).
 
@@ -47,7 +53,18 @@ We note that this command run relies on integrations that were specific to the M
 Mirai (the trained model) and all code are released under the MIT license. 
 
 ## Installing Mirai for clinical use
-Please see [Ark](https://github.com/reginabarzilaygroup/ark), our framework for deploying mammography-based models in the clinic. Ark can be easily installed on premise using Docker, and it provides a simple HTTP interface to get risk assessments for a given patient's dicom files. Ark encapsulates all the dependencies and necessary preprocessing.
+
+It is recommended to use [Ark](https://github.com/reginabarzilaygroup/ark), our framework for deploying mammography-based models in the clinic. Ark can be easily installed on premise using Docker, and it provides a simple HTTP interface to get risk assessments for a given patient's dicom files. Ark encapsulates all the dependencies and necessary preprocessing.
+
+Alternatively, one can use the following command to run Mirai directly:
+
+```bash
+python3 scripts/inference.py ccl1.dcm ccr1.dcm mlol2.dcm mlor2.dcm
+```
+
+Where `ccl1.dcm`, `ccr1.dcm`, `mlol2.dcm`, `mlor2.dcm` are the paths to the dicom files for the left CC, right CC, left MLO, and right MLO views of the mammogram, respectively. The output will be a risk assessment for the patient in the form of a JSON file.
+
+See `run_inference_demo.sh` for a longer example
 
 ### How validate the model on a large dataset
 To validate Mirai, you can use the following command: `sh demo/validate.sh`
