@@ -12,6 +12,8 @@ This code base is meant to achieve a few goals:
 We note that this code-base is an extension of [OncoNet](https://github.com/yala/OncoNet_Public), which we used to develop Hybrid DL and ImageOnly DL.
 Mirai is designed to operate in bulk, on PNG images. For a conversion toolkit, see [OncoData](https://github.com/reginabarzilaygroup/OncoData_Public)
 
+Also see the [wiki](https://github.com/reginabarzilaygroup/Mirai/wiki) for more information.
+
 ## Aside on Software Dependencies
 This code assumes python3.8 and a Linux environment.
 The package can be installed with pip:
