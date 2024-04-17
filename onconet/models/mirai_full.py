@@ -23,7 +23,10 @@ from onconet.transformers.basic import ComposeTrans
 import onconet.utils.dicom
 from onconet.utils import parsing
 
-logger = logging.getLogger('mirai_full')
+LOGGER_NAME = "mirai_full"
+logger = logging.getLogger(LOGGER_NAME)
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+logger.propagate = False
 
 
 @RegisterModel("mirai_full")
@@ -66,7 +69,7 @@ def download_file(url, destination):
     try:
         urllib.request.urlretrieve(url, destination)
     except Exception as e:
-        logging.getLogger("mirai_full").error(f"An error occurred while downloading from {url} to {destination}: {e}")
+        logging.getLogger(LOGGER_NAME).error(f"An error occurred while downloading from {url} to {destination}: {e}")
         raise e
 
 
