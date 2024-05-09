@@ -1,6 +1,6 @@
 import logging
-from collections import Iterable
 from subprocess import Popen
+from typing import Iterable
 
 import numpy as np
 import pydicom

@@ -2,7 +2,6 @@ import argparse
 import torch
 import os
 import pwd
-from onconet.datasets.factory import get_dataset_class
 
 EMPTY_NAME_ERR = 'Name of transformer or one of its arguments cant be empty\n\
                   Use "name/arg1=value/arg2=value" format'
@@ -149,6 +148,7 @@ def parse_dispatcher_config(config):
             jobs = children
 
     return jobs, experiment_axies
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='OncoNet Classifier')
@@ -315,7 +315,7 @@ def parse_args():
     parser.add_argument('--img_encoder_snapshot', type=str, default=None, help='filename of img_feat_extractor model snapshot to load. Only used for mirai_full type models [default: None]')
     parser.add_argument('--freeze_image_encoder', action='store_true', default=False, help='Whether freeze image_encoder.') #
     parser.add_argument('--transformer_snapshot', type=str, default=None, help='filename of transformer model snapshot to load. Only used for mirai_full type models [default: None]')
-    parser.add_argument('--callibrator_snapshot', type=str, default=None, help='filename of callibrator. Produced for a single model on development set using Platt Scaling')
+    parser.add_argument('--calibrator_snapshot', type=str, default=None, help='filename of calibrator. Produced for a single model on development set using Platt Scaling')
     parser.add_argument('--patch_snapshot', type=str, default=None, help='filename of patch model snapshot to load. Only used for aggregator type models [default: None]')
     parser.add_argument('--pretrained_on_imagenet', action='store_true', default=False, help='Pretrain the model on imagenet. Only relevant for default models like VGG, resnet etc')
     parser.add_argument('--pretrained_imagenet_model_name', type=str, default='resnet18', help='Name of pretrained model to load for custom resnets.')
@@ -355,9 +355,6 @@ def parse_args():
     parser.add_argument('--ignore_warnings', action='store_true', default=False, help='ignore all warnings')
 
     args = parser.parse_args()
-
-    # Set args particular to dataset
-    get_dataset_class(args).set_args(args)
 
     args.cuda = args.cuda and torch.cuda.is_available()
     args.device = 'cuda' if args.cuda else 'cpu'
