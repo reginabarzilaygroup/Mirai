@@ -2,6 +2,7 @@ import logging
 import os
 import pickle
 import tempfile
+import traceback
 from typing import List, BinaryIO
 import zipfile
 
@@ -232,6 +233,7 @@ class MiraiModel:
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
             except Exception as e:
                 logger.warning(f"{type(e).__name__}: {e}")
+                logger.warning(f"{traceback.format_exc()}")
 
         risk_factor_vector = None
 
