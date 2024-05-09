@@ -59,7 +59,7 @@ class TestModels(unittest.TestCase):
         Check that our calibrator is the same as the old one.
         """
         new_cal_path = os.path.join(project_dir, "snapshots/calibrators/Mirai_calibrator_mar12_2022.p")
-        cal_table_path = os.path.join(project_dir, "tests/Mirai_pred_rf_callibrator_mar12_2022_values.csv")
+        cal_table_path = os.path.join(project_dir, "tests/test_data/Mirai_pred_rf_callibrator_mar12_2022_values.csv")
         new_calibrators = pickle.load(open(new_cal_path, "rb"))
 
         import numpy as np
@@ -100,7 +100,7 @@ def _generate_calibration_data():
         myx = test_vals.reshape(-1, 1)
         output_df[key] = calibrator.predict_proba(myx)[:, 1]
 
-    output_df.to_csv("tests/Mirai_pred_rf_callibrator_mar12_2022_values.csv", index=False, header=True)
+    output_df.to_csv("tests/test_data/Mirai_pred_rf_callibrator_mar12_2022_values.csv", index=False, header=True)
 
 
 if __name__ == '__main__':
