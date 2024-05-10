@@ -1,6 +1,8 @@
 import json
 import datetime
 import logging
+import math
+import pprint
 import traceback
 import unittest
 import sys
@@ -49,9 +51,15 @@ class TestInferenceRegression(unittest.TestCase):
     def inference_inbreast(self):
         import scripts.inference as inference
         import pandas as pd
+        import requests
 
         allow_resume = True
         save_view_tags = True
+        max_to_process = math.inf
+
+        # True ->  send web requests to the ARK server (must be launched separately).
+        # False -> to run inference directly.
+        use_ark = False
 
         group_col = "Patient ID"
         filename_col = "Full File Name"
@@ -67,7 +75,14 @@ class TestInferenceRegression(unittest.TestCase):
         input_table = os.path.join(PROJECT_DIR, "tests/test_data/inbreast_table_v01.tsv")
 
         version = onconet.__version__
-        cur_pred_results = os.path.join("tests", f"inbreast_predictions_{version}.json")
+        out_fi_name = f"inbreast_predictions_v{version}.json"
+        if use_ark:
+            # Query the ARK server to get the version
+            resp = requests.get("http://localhost:5000/info")
+            version = resp.json()["data"]["apiVersion"]
+            out_fi_name = f"inbreast_predictions_ark_v{version}.json"
+
+        cur_pred_results = os.path.join("tests", out_fi_name)
 
         all_results = {
             "__metadata__": {
@@ -86,9 +101,15 @@ class TestInferenceRegression(unittest.TestCase):
         input_df = pd.read_csv(input_table, sep="\t")
         num_patients = input_df[group_col].nunique()
 
-        print(f"About to process {num_patients} patients.")
+        print(f"About to process {num_patients} patients with version {version}.\n"
+              f"Results will be saved to {cur_pred_results}")
+
         idx = 0
         for patient_id, group_df in input_df.groupby(group_col):
+            if idx >= max_to_process:
+                print(f"Reached max_to_process ({max_to_process}), stopping.")
+                break
+
             idx += 1
             print(f"{datetime.datetime.now()} Processing {patient_id} ({idx}/{num_patients})")
             if patient_id in all_results:
@@ -119,20 +140,72 @@ class TestInferenceRegression(unittest.TestCase):
 
             prediction = {}
 
-            try:
-                prediction = inference.inference(dicom_file_paths, inference.DEFAULT_CONFIG_PATH, use_pydicom=False)
-            except Exception as e:
-                print(f"An error occurred while processing {patient_id}: {e}")
-                prediction["error"] = traceback.format_exc()
+            if use_ark:
+                import requests
+                # Submit prediction to ARK server.
+                files = [('dicom', open(file_path, 'rb')) for file_path in dicom_file_paths]
+                r = requests.post("http://localhost:5000/dicom/files", data={}, files=files)
+                if r.status_code != 200:
+                    print(f"An error occurred while processing {patient_id}: {r.text}")
+                    prediction["error"] = r.text
+                    continue
+                else:
+                    prediction = r.json()["data"]
+            else:
+                try:
+                    prediction = inference.inference(dicom_file_paths, inference.DEFAULT_CONFIG_PATH, use_pydicom=False)
+                except Exception as e:
+                    print(f"An error occurred while processing {patient_id}: {e}")
+                    prediction["error"] = traceback.format_exc()
 
             cur_dict = {"files": dicom_file_names,
                         group_col: patient_id}
-            cur_dict.update(prediction)
+            if prediction:
+                cur_dict.update(prediction)
 
             all_results[patient_id] = cur_dict
 
             with open(cur_pred_results, 'w') as f:
                 json.dump(all_results, f, indent=2)
+
+    def compare_inference_scores(self):
+        # baseline_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_v0.7.0.json")
+        baseline_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_ark_v0.4.1.json")
+        new_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_v0.8.0.json")
+        pred_key = "predictions"
+        num_compared = 0
+
+        with open(baseline_preds_path, 'r') as f:
+            baseline_preds = json.load(f)
+        with open(new_preds_path, 'r') as f:
+            new_preds = json.load(f)
+
+        ignore_keys = {"__metadata__"}
+        overlap_keys = set(baseline_preds.keys()).intersection(new_preds.keys()) - ignore_keys
+        union_keys = set(baseline_preds.keys()).union(new_preds.keys()) - ignore_keys
+        print(f"{len(overlap_keys)} / {len(union_keys)} patients in common between the two prediction files.")
+
+        for key in overlap_keys:
+            if key in ignore_keys:
+                continue
+
+            if pred_key not in baseline_preds[key]:
+                print(f"{pred_key} not found in baseline predictions for {key}")
+                assert pred_key not in new_preds[key]
+                # pprint.pprint(baseline_preds[key])
+                continue
+
+            cur_baseline_preds = baseline_preds[key]["predictions"]
+            cur_new_preds = new_preds[key]["predictions"]
+            for year in cur_baseline_preds:
+                baseline_score = cur_baseline_preds[year]
+                new_score = cur_new_preds[year]
+                self.assertAlmostEqual(baseline_score, new_score, delta=0.0001, msg=f"Scores for {key} differ for year {year}. Baseline: {baseline_score}, New: {new_score}")
+
+            num_compared += 1
+
+        assert num_compared > 0
+        print(f"Compared {num_compared} patients.")
 
 
 class TestInference(unittest.TestCase):
@@ -187,4 +260,3 @@ class TestInference(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-    # TestInferenceRegression().test_inbreast()
