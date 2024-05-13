@@ -22,6 +22,9 @@ DATE_FORMAT_STR = "%Y-%m-%d:%H-%M-%S"
 
 if __name__ == '__main__':
     args = parsing.parse_args()
+    # Set args particular to dataset
+    dataset_factory.get_dataset_class(args).set_args(args)
+
     if args.ignore_warnings:
         warnings.simplefilter('ignore')
 

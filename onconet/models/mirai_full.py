@@ -1,10 +1,8 @@
-import io
 import logging
-import math
 import os
-import pdb
 import pickle
 import tempfile
+import traceback
 from typing import List, BinaryIO
 import zipfile
 
@@ -19,6 +17,7 @@ from onconet import __version__ as onconet_version
 from onconet.models.factory import load_model, RegisterModel, get_model_by_name
 import onconet.transformers.factory as transformer_factory
 from onconet.models.factory import get_model
+import onconet.models.calibrator
 from onconet.transformers.basic import ComposeTrans
 import onconet.utils.dicom
 from onconet.utils import parsing
@@ -107,18 +106,19 @@ class MiraiModel:
 
         return model
 
-    def load_callibrator(self):
+    def load_calibrator(self):
         logger.debug("Loading calibrator...")
 
-        # Load callibrator if desired
-        if self.args.callibrator_path is not None:
-            callibrator = pickle.load(open(self.args.callibrator_path, 'rb'))
+        # Load calibrator if desired
+        if self.args.calibrator_path is not None:
+            with open(self.args.calibrator_path, 'rb') as infi:
+                calibrator = pickle.load(infi)
         else:
-            callibrator = None
+            calibrator = None
 
-        return callibrator
+        return calibrator
 
-    def process_image_joint(self, batch, model, callibrator, risk_factor_vector=None):
+    def process_image_joint(self, batch, model, calibrator, risk_factor_vector=None):
         logger.debug("Getting predictions...")
 
         if self.args.cuda:
@@ -138,11 +138,11 @@ class MiraiModel:
         probs = F.sigmoid(logit).cpu().data.numpy()
         pred_y = np.zeros(probs.shape[1])
 
-        if callibrator is not None:
+        if calibrator is not None:
             logger.debug("Raw probs: {}".format(probs))
 
-            for i in callibrator.keys():
-                pred_y[i] = callibrator[i].predict_proba(probs[0, i].reshape(-1, 1))[0, 1]
+            for i in calibrator.keys():
+                pred_y[i] = calibrator[i].predict_proba(probs[0, i].reshape(-1, 1)).flatten()[1]
 
         return pred_y.tolist()
 
@@ -156,9 +156,9 @@ class MiraiModel:
 
         batch = self.collate_batch(images, transforms)
         model = self.load_model()
-        callibrator = self.load_callibrator()
+        calibrator = self.load_calibrator()
 
-        y = self.process_image_joint(batch, model, callibrator, risk_factor_vector)
+        y = self.process_image_joint(batch, model, calibrator, risk_factor_vector)
 
         return y
 
@@ -233,6 +233,7 @@ class MiraiModel:
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
             except Exception as e:
                 logger.warning(f"{type(e).__name__}: {e}")
+                logger.warning(f"{traceback.format_exc()}")
 
         risk_factor_vector = None
 

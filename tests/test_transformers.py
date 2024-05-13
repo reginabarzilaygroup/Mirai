@@ -77,12 +77,14 @@ class TestTransformers(unittest.TestCase):
         im.putdata(pixel)
         self.kwargs['w'] = 2
         self.kwargs['h'] = 2
-        with mock.patch('random.randint', lambda x, y: 0):
+        with mock.patch('torch.randint', lambda x, y, **kwargs: torch.Tensor([0])):
             cropper = ti.Random_Crop(self.args, self.kwargs)
             output = cropper(im, None)
         expected = Image.new("RGB", (2, 2))
         expected.putdata([self.red_pixel, self.red_pixel, self.red_pixel, self.green_pixel])
-        self.assertEqual(expected, output)
+
+        for ee, oo in zip(expected.getdata(), output.getdata()):
+            self.assertEqual(ee, oo)
 
     def test_image_rotate_range(self):
         ''' Test rotating the image by 90 degrees counter-clockwise and clockwise.'''
