@@ -59,7 +59,7 @@ class TestInferenceRegression(unittest.TestCase):
 
         # True ->  send web requests to the ARK server (must be launched separately).
         # False -> to run inference directly.
-        use_ark = False
+        use_ark = os.environ.get("MIRAI_TEST_USE_ARK", "false").lower() == "true"
 
         group_col = "Patient ID"
         filename_col = "Full File Name"
@@ -145,12 +145,13 @@ class TestInferenceRegression(unittest.TestCase):
                 # Submit prediction to ARK server.
                 files = [('dicom', open(file_path, 'rb')) for file_path in dicom_file_paths]
                 r = requests.post("http://localhost:5000/dicom/files", data={}, files=files)
+                _ = [f[1].close() for f in files]
                 if r.status_code != 200:
                     print(f"An error occurred while processing {patient_id}: {r.text}")
                     prediction["error"] = r.text
                     continue
                 else:
-                    prediction = r.json()["data"]
+                    prediction = r.json()["data"]["predictions"]
             else:
                 try:
                     prediction = inference.inference(dicom_file_paths, inference.DEFAULT_CONFIG_PATH, use_pydicom=False)
@@ -169,9 +170,8 @@ class TestInferenceRegression(unittest.TestCase):
                 json.dump(all_results, f, indent=2)
 
     def compare_inference_scores(self):
-        # baseline_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_v0.7.0.json")
-        baseline_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_ark_v0.4.1.json")
-        new_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_v0.8.0.json")
+        baseline_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_v0.7.0.json")
+        new_preds_path = os.environ.get("MIRAI_TEST_COMPARE_PATH")
         pred_key = "predictions"
         num_compared = 0
 
