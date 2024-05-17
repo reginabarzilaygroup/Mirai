@@ -1,5 +1,7 @@
 import logging
+import subprocess
 from subprocess import Popen
+import os
 from typing import Iterable
 
 import numpy as np
@@ -8,6 +10,8 @@ from PIL import Image
 from pydicom.pixel_data_handlers.util import apply_modality_lut, apply_voi_lut
 
 logger = logging.getLogger('onconet.utils.dicom')
+logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
+logger.propagate = False
 
 
 def apply_windowing(image, center, width, bit_depth=16, voi_type='LINEAR'):
@@ -102,13 +106,18 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     else:
         ser_desc = ''
 
+    # https://support.dcmtk.org/docs/dcmj2pnm.html
     if 'GE' in manufacturer and voi_lut_exists:
-        Popen(['dcmj2pnm', '+on2', '--use-voi-lut', '1', dicom_path, image_path]).wait()
+        args = ['dcmj2pnm', '+on2', '--use-voi-lut', '1', '--grayscale', dicom_path, image_path]
     elif 'C-View' in ser_desc and voi_lut_exists:
-        Popen(['dcmj2pnm', '+on2', '+Ww', default_window_level, default_window_width, dicom_path, image_path]).wait()
+        args = ['dcmj2pnm', '+on2', '+Ww', '--grayscale', default_window_level, default_window_width, dicom_path, image_path]
     else:
         logger.warning("Manufacturer not GE or C-View/VOI LUT doesn't exist, defaulting to min-max window algorithm")
-        Popen(['dcmj2pnm', '+on2', '--min-max-window', dicom_path, image_path]).wait()
+        args = ['dcmj2pnm', '+on2', '--min-max-window', '--grayscale', dicom_path, image_path]
+
+    output = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if output.stderr:
+        logger.debug(output.stderr.decode('utf-8'))
 
     return Image.open(image_path)
 
@@ -164,7 +173,10 @@ def dicom_to_arr(dicom, auto=True, index=0, pillow=False, overlay=False):
         image[arr == 1] = 2 ** 16 - 1
 
     if pillow:
-        return Image.fromarray(image.astype(np.int32), mode='I')
+        image = image.astype(np.int32)
+        if image.shape[-1] in {3, 4}:
+            image = image.mean(axis=-1, dtype=np.int32)
+        return Image.fromarray(image, mode='I')
     else:
         return image
 
@@ -182,11 +194,20 @@ def get_dicom_info(dicom):
     """
     if not hasattr(dicom, 'ViewPosition'):
         raise AttributeError('ViewPosition does not exist in DICOM metadata')
-    if not hasattr(dicom, 'ImageLaterality'):
-        raise AttributeError('ImageLaterality does not exist in DICOM metadata')
 
     view_str = dicom.ViewPosition
-    side_str = dicom.ImageLaterality
+
+    if not hasattr(dicom, 'ImageLaterality'):
+        if "RIGHT" in view_str.upper():
+            side_str = 'R'
+        elif "LEFT" in view_str.upper():
+            side_str = 'L'
+        else:
+            raise AttributeError('ImageLaterality does not exist in DICOM metadata')
+    else:
+        side_str = dicom.ImageLaterality
+
+    view_str = view_str.upper().replace("RIGHT", "").replace("LEFT", "").strip()
 
     valid_view = ['CC', 'MLO']
     valid_side = ['R', 'L']

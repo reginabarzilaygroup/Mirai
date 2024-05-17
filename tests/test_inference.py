@@ -48,14 +48,19 @@ class TestInferenceRegression(unittest.TestCase):
     def setUp(self):
         pass
 
-    def inference_inbreast(self):
+    def test_inference_inbreast(self):
+        if not os.environ.get("MIRAI_TEST_RUN_REGRESSION", "false").lower() == "true":
+            import pytest
+            pytest.skip(f"Skipping long-running test in {type(self)}.")
+
         import scripts.inference as inference
         import pandas as pd
         import requests
 
         allow_resume = True
         save_view_tags = True
-        max_to_process = math.inf
+        max_to_process = os.environ.get("MIRAI_TEST_MAX_TO_PROCESS", "5")
+        max_to_process = math.inf if max_to_process == "inf" else int(max_to_process)
 
         # True ->  send web requests to the ARK server (must be launched separately).
         # False -> to run inference directly.
@@ -100,8 +105,9 @@ class TestInferenceRegression(unittest.TestCase):
 
         input_df = pd.read_csv(input_table, sep="\t")
         num_patients = input_df[group_col].nunique()
+        num_to_process = min(num_patients, max_to_process)
 
-        print(f"About to process {num_patients} patients with version {version}.\n"
+        print(f"About to process {num_to_process} patients with version {version}.\n"
               f"Results will be saved to {cur_pred_results}")
 
         idx = 0
@@ -111,7 +117,7 @@ class TestInferenceRegression(unittest.TestCase):
                 break
 
             idx += 1
-            print(f"{datetime.datetime.now()} Processing {patient_id} ({idx}/{num_patients})")
+            print(f"{datetime.datetime.now()} Processing {patient_id} ({idx}/{num_to_process})")
             if patient_id in all_results:
                 print(f"Already processed {patient_id}, skipping")
                 continue
@@ -144,14 +150,14 @@ class TestInferenceRegression(unittest.TestCase):
                 import requests
                 # Submit prediction to ARK server.
                 files = [('dicom', open(file_path, 'rb')) for file_path in dicom_file_paths]
-                r = requests.post("http://localhost:5000/dicom/files", data={}, files=files)
+                r = requests.post("http://localhost:5000/dicom/files", data={"dcmtk": False}, files=files)
                 _ = [f[1].close() for f in files]
                 if r.status_code != 200:
                     print(f"An error occurred while processing {patient_id}: {r.text}")
                     prediction["error"] = r.text
                     continue
                 else:
-                    prediction = r.json()["data"]["predictions"]
+                    prediction = r.json()["data"]
             else:
                 try:
                     prediction = inference.inference(dicom_file_paths, inference.DEFAULT_CONFIG_PATH, use_pydicom=False)
@@ -169,7 +175,11 @@ class TestInferenceRegression(unittest.TestCase):
             with open(cur_pred_results, 'w') as f:
                 json.dump(all_results, f, indent=2)
 
-    def compare_inference_scores(self):
+    def test_compare_inference_scores(self):
+        if not os.environ.get("MIRAI_TEST_RUN_REGRESSION", "false").lower() == "true":
+            import pytest
+            pytest.skip(f"Skipping long-running test in {type(self)}.")
+
         baseline_preds_path = os.path.join(PROJECT_DIR, "tests", "inbreast_predictions_v0.7.0.json")
         new_preds_path = os.environ.get("MIRAI_TEST_COMPARE_PATH")
         pred_key = "predictions"

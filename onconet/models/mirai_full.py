@@ -4,6 +4,7 @@ import pickle
 import tempfile
 import traceback
 from typing import List, BinaryIO
+import warnings
 import zipfile
 
 import numpy as np
@@ -13,13 +14,15 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 
+warnings.filterwarnings("ignore", category=torch.serialization.SourceChangeWarning)
+
+import onconet.transformers.factory as transformer_factory
+import onconet.models.calibrator
+import onconet.utils.dicom
 from onconet import __version__ as onconet_version
 from onconet.models.factory import load_model, RegisterModel, get_model_by_name
-import onconet.transformers.factory as transformer_factory
 from onconet.models.factory import get_model
-import onconet.models.calibrator
 from onconet.transformers.basic import ComposeTrans
-import onconet.utils.dicom
 from onconet.utils import parsing
 
 LOGGER_NAME = "mirai_full"
@@ -238,7 +241,7 @@ class MiraiModel:
         risk_factor_vector = None
 
         y = self.process_exam(images, risk_factor_vector)
-        logging.debug(f'Raw Predictions: {y}')
+        logger.debug(f'Raw Predictions: {y}')
 
         y = {'Year {}'.format(i+1): round(p, 4) for i, p in enumerate(y)}
         report = {'predictions': y}
