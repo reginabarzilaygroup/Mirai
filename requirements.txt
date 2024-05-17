@@ -2,7 +2,7 @@ pandas==1.4.3
 gitpython==3.1.26
 imageio==2.13.1
 mock==4.0.3
-numpy==1.22.1
+numpy==1.24.*
 Pillow==9.0.0
 pydicom==2.3.0
 scipy==1.7.3
