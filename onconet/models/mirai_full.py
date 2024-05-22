@@ -150,7 +150,10 @@ class MiraiModel:
         return pred_y.tolist()
 
     def process_exam(self, images, risk_factor_vector):
-        logger.debug("Processing images...")
+        if len(images) != 4:
+            raise ValueError(f"Require exactly 4 images, instead we got {len(images)}")
+
+        logger.debug(f"Processing images...")
 
         test_image_transformers = parsing.parse_transformers(self.args.test_image_transformers)
         test_tensor_transformers = parsing.parse_transformers(self.args.test_tensor_transformers)

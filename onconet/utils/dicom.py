@@ -197,6 +197,8 @@ def get_dicom_info(dicom):
 
     view_str = dicom.ViewPosition
 
+    # Have seen cases where ImageLaterality is not present in DICOM metadata,
+    # and the relevant information is in the ViewPosition tag. Check for this.
     if not hasattr(dicom, 'ImageLaterality'):
         if "RIGHT" in view_str.upper():
             side_str = 'R'
