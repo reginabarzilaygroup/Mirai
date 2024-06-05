@@ -40,7 +40,7 @@ def download_file(url, destination):
         raise e
 
 
-class TestInferenceRegression(unittest.TestCase):
+class TestPredictionRegression(unittest.TestCase):
     """
     Test that the model predictions are the same as the expected predictions.
     Running this test will be very time consuming, since we need to process so many scans.
@@ -53,7 +53,7 @@ class TestInferenceRegression(unittest.TestCase):
             import pytest
             pytest.skip(f"Skipping long-running test in {type(self)}.")
 
-        import scripts.inference as inference
+        import onconet.predict as predict
         import pandas as pd
         import requests
 
@@ -160,7 +160,7 @@ class TestInferenceRegression(unittest.TestCase):
                     prediction = r.json()["data"]
             else:
                 try:
-                    prediction = inference.inference(dicom_file_paths, inference.DEFAULT_CONFIG_PATH, use_pydicom=False)
+                    prediction = predict.predict(dicom_file_paths, predict.DEFAULT_CONFIG_PATH, use_pydicom=False)
                 except Exception as e:
                     print(f"An error occurred while processing {patient_id}: {e}")
                     prediction["error"] = traceback.format_exc()
@@ -218,7 +218,7 @@ class TestInferenceRegression(unittest.TestCase):
         print(f"Compared {num_compared} patients.")
 
 
-class TestInference(unittest.TestCase):
+class TestPredict(unittest.TestCase):
     def setUp(self):
         # Download demo data if it doesn't exist
         self.data_dir = os.path.join(PROJECT_DIR, "mirai_demo_data")
@@ -240,10 +240,10 @@ class TestInference(unittest.TestCase):
                        f"{data_dir}/mlol2.dcm",
                        f"{data_dir}/mlor2.dcm"]
 
-        import scripts.inference as inference
+        import onconet.predict as predict
 
-        v07_config_path = os.path.join(inference.config_dir, "mirai_trained_v0.7.0.json")
-        prediction = inference.inference(dicom_files, v07_config_path)
+        v07_config_path = os.path.join(predict.config_dir, "mirai_trained_v0.7.0.json")
+        prediction = predict.predict(dicom_files, v07_config_path)
         expected_result = {'predictions': {'Year 1': 0.0298, 'Year 2': 0.0483, 'Year 3': 0.0684, 'Year 4': 0.09, 'Year 5': 0.1016}}
 
         self.assertEqual(prediction, expected_result, "Prediction does not match expected result.")
@@ -257,14 +257,14 @@ class TestInference(unittest.TestCase):
 
         import scripts.inference as inference
 
-        prediction = inference.inference(dicom_files, inference.DEFAULT_CONFIG_PATH)
+        prediction = inference.predict(dicom_files, inference.DEFAULT_CONFIG_PATH)
         expected_result = {'predictions': {'Year 1': 0.0298, 'Year 2': 0.0483, 'Year 3': 0.0684, 'Year 4': 0.09, 'Year 5': 0.1016}}
 
         self.assertEqual(prediction, expected_result, "Prediction does not match expected result.")
 
         # Try again with dicom files in a different order
         dicom_files = [dicom_files[2], dicom_files[3], dicom_files[0], dicom_files[1]]
-        prediction = inference.inference(dicom_files, inference.DEFAULT_CONFIG_PATH)
+        prediction = inference.predict(dicom_files, inference.DEFAULT_CONFIG_PATH)
         self.assertEqual(prediction, expected_result, "Prediction does not match expected result in new order.")
 
 

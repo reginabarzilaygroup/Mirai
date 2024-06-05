@@ -14,11 +14,11 @@ demo_scan_dir=mirai_demo_data
 # Download the demo data if it doesn't exist
 if [ ! -d "$demo_scan_dir" ]; then
   echo "$(date) Demo data not found locally, downloading"
-  wget -L wget -L https://github.com/reginabarzilaygroup/Mirai/releases/latest/download/mirai_demo_data.zip
+  wget -L https://github.com/reginabarzilaygroup/Mirai/releases/latest/download/mirai_demo_data.zip
   unzip mirai_demo_data.zip -d "$demo_scan_dir"
 fi
 
-python3 scripts/inference.py --config configs/mirai_trained.json \
+mirai-predict \
 --loglevel INFO \
 --output-path demo_prediction.json \
 --use-pydicom \

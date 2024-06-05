@@ -2,21 +2,20 @@
 import argparse
 import io
 import json
-import logging
 import os
 from typing import List
 
 from onconet.models.mirai_full import MiraiModel
+from onconet.utils import logging_utils
 
 script_path = os.path.abspath(__file__)
 script_dir = os.path.dirname(script_path)
-project_dir = os.path.dirname(script_dir)
-config_dir = os.path.join(project_dir, "configs")
+config_dir = os.path.join(script_dir, "configs")
 DEFAULT_CONFIG_PATH = os.path.join(config_dir, "mirai_trained.json")
 
 
 __doc__ = """
-Script for running inference on a single exam using a trained Mirai model.
+Use Mirai to run inference on a single exam.
 """
 
 
@@ -25,15 +24,16 @@ def _get_parser():
     parser.add_argument('--config', default=DEFAULT_CONFIG_PATH, help="Path to model configuration file.")
     parser.add_argument('--output-path', default=None, dest="output_path",
                         help="Path to save prediction JSON. Prediction will be printed to stdout as well.")
-    parser.add_argument('-l', '--log', '--loglevel', default="INFO", dest="loglevel")
+    parser.add_argument('-l', '--log', '--loglevel', '--log-level',
+                        default="INFO", dest="loglevel")
     parser.add_argument('--use-pydicom', default=False, action="store_true",
                         help="Use pydicom instead of dcmtk to read DICOM files.")
     parser.add_argument('dicoms', nargs="+", help="Path to DICOM files (from a single exam) to run inference on.")
     return parser
 
 
-def inference(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False):
-    logger = logging.getLogger('inference')
+def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False):
+    logger = logging_utils.get_logger()
 
     assert len(dicom_files) == 4, "Expected 4 DICOM files, got {}".format(len(dicom_files))
     for dicom_file in dicom_files:
@@ -66,21 +66,11 @@ def inference(dicom_files: List[str], config_path: str, output_path=None, use_py
     return prediction
 
 
-def logging_basic_config(args):
-    info_fmt = "[%(asctime)s] - %(message)s"
-    debug_fmt = "[%(asctime)s] [%(filename)s:%(lineno)d] %(levelname)s - %(message)s"
-    fmt = debug_fmt if args.loglevel.upper() == "DEBUG" else info_fmt
-
-    logging.basicConfig(format=fmt,
-                        datefmt="%Y-%m-%d %H:%M:%S",
-                        level=args.loglevel.upper())
-
-
 def main():
     args = _get_parser().parse_args()
-    logging_basic_config(args)
+    logging_utils.configure_logger(args.loglevel)
 
-    prediction = inference(args.dicoms, args.config, args.output_path, args.use_pydicom)
+    prediction = predict(args.dicoms, args.config, args.output_path, args.use_pydicom)
     print(prediction)
 
 
