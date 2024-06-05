@@ -24,11 +24,7 @@ from onconet.models.factory import load_model, RegisterModel, get_model_by_name
 from onconet.models.factory import get_model
 from onconet.transformers.basic import ComposeTrans
 from onconet.utils import parsing
-
-LOGGER_NAME = "mirai_full"
-logger = logging.getLogger(LOGGER_NAME)
-logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
-logger.propagate = False
+from onconet.utils.logging_utils import get_logger
 
 
 @RegisterModel("mirai_full")
@@ -71,7 +67,7 @@ def download_file(url, destination):
     try:
         urllib.request.urlretrieve(url, destination)
     except Exception as e:
-        logging.getLogger(LOGGER_NAME).error(f"An error occurred while downloading from {url} to {destination}: {e}")
+        get_logger().error(f"An error occurred while downloading from {url} to {destination}: {e}")
         raise e
 
 
@@ -85,6 +81,7 @@ class MiraiModel:
         self.__version__ = onconet_version
 
     def load_model(self):
+        logger = get_logger()
         logger.debug("Loading model...")
         self.args.cuda = self.args.cuda and torch.cuda.is_available()
 
@@ -110,7 +107,7 @@ class MiraiModel:
         return model
 
     def load_calibrator(self):
-        logger.debug("Loading calibrator...")
+        get_logger().debug("Loading calibrator...")
 
         # Load calibrator if desired
         if self.args.calibrator_path is not None:
@@ -122,6 +119,7 @@ class MiraiModel:
         return calibrator
 
     def process_image_joint(self, batch, model, calibrator, risk_factor_vector=None):
+        logger = get_logger()
         logger.debug("Getting predictions...")
 
         if self.args.cuda:
@@ -153,6 +151,7 @@ class MiraiModel:
         if len(images) != 4:
             raise ValueError(f"Require exactly 4 images, instead we got {len(images)}")
 
+        logger = get_logger()
         logger.debug(f"Processing images...")
 
         test_image_transformers = parsing.parse_transformers(self.args.test_image_transformers)
@@ -169,7 +168,7 @@ class MiraiModel:
         return y
 
     def collate_batch(self, images, transforms):
-        logger.debug("Collating batches...")
+        get_logger().debug("Collating batches...")
 
         batch = {}
         batch['side_seq'] = torch.cat([torch.tensor(b['side_seq']).unsqueeze(0) for b in images], dim=0).unsqueeze(0)
@@ -183,6 +182,7 @@ class MiraiModel:
         return batch
 
     def run_model(self, dicom_files: List[BinaryIO], payload=None):
+        logger = get_logger()
         if payload is None:
             payload = {
                 'dcmtk': True
@@ -231,11 +231,12 @@ class MiraiModel:
 
                 if payload['dcmtk']:
                     image = onconet.utils.dicom.dicom_to_image_dcmtk(dicom_path, image_path)
-                    logger.debug('Image mode: {}'.format(image.mode))
+                    logger.debug('Image mode from dcmtk: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
                 else:
                     dicom = pydicom.dcmread(dicom_path)
                     image = onconet.utils.dicom.dicom_to_arr(dicom, pillow=True)
+                    logger.debug('Image mode from dicom: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
             except Exception as e:
                 logger.warning(f"{type(e).__name__}: {e}")
@@ -263,7 +264,7 @@ class MiraiModel:
         if getattr(args, 'remote_snapshot_uri', None) is None:
             return
 
-        logger.info(f"Local models not found, downloading snapshot from remote URI: {args.remote_snapshot_uri}")
+        get_logger().info(f"Local models not found, downloading snapshot from remote URI: {args.remote_snapshot_uri}")
         os.makedirs(cache_dir, exist_ok=True)
         tmp_zip_path = os.path.join(cache_dir, "snapshots.zip")
         download_file(args.remote_snapshot_uri, tmp_zip_path)
