@@ -129,7 +129,8 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     return Image.open(image_path)
 
 
-def dicom_to_arr(dicom, auto=True, index=0, pillow=False, overlay=False):
+def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
+    logger = get_logger()
     image = apply_modality_lut(dicom.pixel_array, dicom)
 
     if (0x0028, 0x1056) in dicom:
@@ -142,14 +143,20 @@ def dicom_to_arr(dicom, auto=True, index=0, pillow=False, overlay=False):
         image = apply_voi_lut(image.astype(np.uint16), dicom, index=index)
         num_bits = dicom[0x0028, 0x3010].value[index][0x0028, 0x3002].value[2]
         image *= 2**(16 - num_bits)
-    elif auto:
+    elif method == 'auto':
         logger.debug('auto dicom_to_arr conversion')
         window_center = -600
         window_width = 1500
+        # Use the window center and width from the DICOM header if available
+        if (0x0028, 0x1050) in dicom:
+            window_center = dicom[0x0028, 0x1050].value
+            window_width = dicom[0x0028, 0x1051].value
+
+        logger.debug(f"auto window center: {window_center}, window width: {window_width}")
 
         image = apply_windowing(image, window_center, window_width, voi_type=voi_type)
-    else:
-        logger.debug('minmax')
+    elif method == 'minmax':
+        logger.debug('minmax dicom_to_arr conversion')
         min_pixel = np.min(image)
         max_pixel = np.max(image)
         window_center = (min_pixel + max_pixel + 1) / 2
