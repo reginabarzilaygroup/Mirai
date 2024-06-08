@@ -9,9 +9,10 @@ import pydicom
 from PIL import Image
 from pydicom.pixel_data_handlers.util import apply_modality_lut, apply_voi_lut
 
-logger = logging.getLogger('onconet.utils.dicom')
-logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
-logger.propagate = False
+from .logging_utils import get_logger
+
+default_window_center = "540"
+default_window_width = "580"
 
 
 def apply_windowing(image, center, width, bit_depth=16, voi_type='LINEAR'):
@@ -51,6 +52,8 @@ def apply_windowing(image, center, width, bit_depth=16, voi_type='LINEAR'):
             )
     elif voi_type == 'SIGMOID':
         image = y_range / (1 + np.exp(-4 * (image - center) / width)) + y_min
+    else:
+        raise ValueError("Invalid/Unknown VOI LUT type: {}".format(voi_type))
 
     return image
 
@@ -65,6 +68,7 @@ def read_dicoms(dicom_list, limit=None):
     Returns:
         list: List of pydicom Datasets
     """
+    logger = get_logger()
     dicoms = []
     for f in dicom_list:
         try:
@@ -92,8 +96,7 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
         dicom_path(str): The path to the dicom file.
         image_path(str): The path where the image will be saved.
     """
-    default_window_level = "540"
-    default_window_width = "580"
+    logger = get_logger()
 
     dcm_file = pydicom.dcmread(dicom_path)
     manufacturer = dcm_file.Manufacturer
@@ -110,11 +113,15 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     if 'GE' in manufacturer and voi_lut_exists:
         args = ['dcmj2pnm', '+on2', '--use-voi-lut', '1', '--grayscale', dicom_path, image_path]
     elif 'C-View' in ser_desc and voi_lut_exists:
-        args = ['dcmj2pnm', '+on2', '+Ww', '--grayscale', default_window_level, default_window_width, dicom_path, image_path]
+        args = ['dcmj2pnm', '+on2', '--grayscale', '+Ww', default_window_center, default_window_width, dicom_path, image_path]
     else:
         logger.warning("Manufacturer not GE or C-View/VOI LUT doesn't exist, defaulting to min-max window algorithm")
         args = ['dcmj2pnm', '+on2', '--min-max-window', '--grayscale', dicom_path, image_path]
 
+    args += ['--log-level', logging.getLevelName(logger.level).lower().replace("warning", "warn")]
+    args = list(map(str, args))
+
+    logger.debug(f"Running command: {' '.join(args)}")
     output = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if output.stderr:
         logger.debug(output.stderr.decode('utf-8'))
@@ -122,7 +129,8 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     return Image.open(image_path)
 
 
-def dicom_to_arr(dicom, auto=True, index=0, pillow=False, overlay=False):
+def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
+    logger = get_logger()
     image = apply_modality_lut(dicom.pixel_array, dicom)
 
     if (0x0028, 0x1056) in dicom:
@@ -133,23 +141,31 @@ def dicom_to_arr(dicom, auto=True, index=0, pillow=False, overlay=False):
     if 'GE' in dicom.Manufacturer:
         logger.debug('GE dicom_to_arr conversion')
         image = apply_voi_lut(image.astype(np.uint16), dicom, index=index)
-
         num_bits = dicom[0x0028, 0x3010].value[index][0x0028, 0x3002].value[2]
         image *= 2**(16 - num_bits)
-    elif auto:
+    elif method == 'auto':
         logger.debug('auto dicom_to_arr conversion')
         window_center = -600
         window_width = 1500
+        # Use the window center and width from the DICOM header if available
+        if (0x0028, 0x1050) in dicom:
+            window_center = dicom[0x0028, 0x1050].value
+            window_width = dicom[0x0028, 0x1051].value
+
+        logger.debug(f"auto window center: {window_center}, window width: {window_width}")
 
         image = apply_windowing(image, window_center, window_width, voi_type=voi_type)
-    else:
-        logger.debug('minmax')
+    elif method == 'minmax':
+        logger.debug('minmax dicom_to_arr conversion')
         min_pixel = np.min(image)
         max_pixel = np.max(image)
         window_center = (min_pixel + max_pixel + 1) / 2
         window_width = max_pixel - min_pixel + 1
+        logger.debug(f"minmax window center: {window_center}, window width: {window_width}")
 
         image = apply_windowing(image, window_center, window_width, voi_type=voi_type)
+    else:
+        raise ValueError(f"Invalid method: {method}")
 
     image = image.astype(np.uint16)
 
