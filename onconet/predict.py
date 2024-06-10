@@ -7,6 +7,7 @@ from typing import List
 
 from onconet.models.mirai_full import MiraiModel
 from onconet.utils import logging_utils
+from onconet import __version__ as onconet_version
 
 script_path = os.path.abspath(__file__)
 script_dir = os.path.dirname(script_path)
@@ -20,15 +21,22 @@ Use Mirai to run inference on a single exam.
 
 
 def _get_parser():
-    parser = argparse.ArgumentParser(description=__doc__)
+    desc = __doc__ + f"\n\nVersion: {onconet_version}\n"
+    parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('--config', default=DEFAULT_CONFIG_PATH, help="Path to model configuration file.")
+
     parser.add_argument('--output-path', default=None, dest="output_path",
                         help="Path to save prediction JSON. Prediction will be printed to stdout as well.")
-    parser.add_argument('-l', '--log', '--loglevel', '--log-level',
-                        default="INFO", dest="loglevel")
+
     parser.add_argument('--use-pydicom', default=False, action="store_true",
                         help="Use pydicom instead of dcmtk to read DICOM files.")
+
+    parser.add_argument('-l', '--log', '--loglevel', '--log-level',
+                        default="INFO", dest="loglevel")
+
+    parser.add_argument('--version', action='version', version=onconet_version)
     parser.add_argument('dicoms', nargs="+", help="Path to DICOM files (from a single exam) to run inference on.")
+
     return parser
 
 
@@ -47,7 +55,7 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
 
     model = MiraiModel(config)
 
-    logger.info(f"Beginning inference version {model.__version__}")
+    logger.info(f"Beginning prediction version {model.__version__}")
 
     # Load DICOM files into memory
     def load_binary(_dicom_file) -> io.BytesIO:

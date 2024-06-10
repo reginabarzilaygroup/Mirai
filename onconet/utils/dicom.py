@@ -111,14 +111,18 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
 
     # https://support.dcmtk.org/docs/dcmj2pnm.html
     if 'GE' in manufacturer and voi_lut_exists:
+        logger.debug("Manufacturer is GE and VOI LUT exists, using VOI LUT")
         args = ['dcmj2pnm', '+on2', '--use-voi-lut', '1', '--grayscale', dicom_path, image_path]
     elif 'C-View' in ser_desc and voi_lut_exists:
+        logger.debug("SeriesDescription contains C-View and VOI LUT exists, using VOI LUT")
         args = ['dcmj2pnm', '+on2', '--grayscale', '+Ww', default_window_center, default_window_width, dicom_path, image_path]
     else:
-        logger.warning("Manufacturer not GE or C-View/VOI LUT doesn't exist, defaulting to min-max window algorithm")
+        logger.debug("Manufacturer not GE or C-View/VOI LUT doesn't exist, defaulting to min-max window algorithm")
         args = ['dcmj2pnm', '+on2', '--min-max-window', '--grayscale', dicom_path, image_path]
 
-    args += ['--log-level', logging.getLevelName(logger.level).lower().replace("warning", "warn")]
+    level_name = logging.getLevelName(logger.level).lower().replace("warning", "warn")
+    if level_name in {"fatal", "error", "warn", "info", "debug", "trace"}:
+        args += ['--log-level', level_name]
     args = list(map(str, args))
 
     logger.debug(f"Running command: {' '.join(args)}")
