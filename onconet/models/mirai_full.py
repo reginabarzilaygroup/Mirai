@@ -71,6 +71,21 @@ def download_file(url, destination):
         raise e
 
 
+def _torch_set_num_threads(threads) -> int:
+    """
+    Set the number of CPU threads for torch to use.
+    Set to a negative number for no-op.
+    Set to 0 for the number of CPUs.
+    """
+    if threads < 0:
+        return torch.get_num_threads()
+    if threads is None or threads == 0:
+        threads = os.cpu_count()
+
+    torch.set_num_threads(threads)
+    return torch.get_num_threads()
+
+
 class MiraiModel:
     """
     Represents a trained Mirai model. Useful for predictions on individual exams.
@@ -183,6 +198,8 @@ class MiraiModel:
 
     def run_model(self, dicom_files: List[BinaryIO], payload=None):
         logger = get_logger()
+        _torch_set_num_threads(getattr(self.args, 'threads', 0))
+
         if payload is None:
             payload = {
                 'dcmtk': True

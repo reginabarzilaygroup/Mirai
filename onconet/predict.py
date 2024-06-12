@@ -31,6 +31,11 @@ def _get_parser():
     parser.add_argument('--use-pydicom', default=False, action="store_true",
                         help="Use pydicom instead of dcmtk to read DICOM files.")
 
+    parser.add_argument('--threads', type=int, default=0,
+                        help="Number of threads to use for PyTorch inference. "
+                             "Default is 0 (use all available cores)."
+                             "Set to a negative number to use Pytorch default.")
+
     parser.add_argument('-l', '--log', '--loglevel', '--log-level',
                         default="INFO", dest="loglevel")
 
@@ -40,7 +45,8 @@ def _get_parser():
     return parser
 
 
-def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False):
+def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False,
+            threads=0):
     logger = logging_utils.get_logger()
 
     assert len(dicom_files) == 4, "Expected 4 DICOM files, got {}".format(len(dicom_files))
@@ -50,12 +56,13 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
 
     with open(config_path, 'r') as f:
         config = json.load(f)
+        config['threads'] = threads
         # Convert from JSON dict to argparse.Namespace
         config = argparse.Namespace(**config)
 
     model = MiraiModel(config)
 
-    logger.info(f"Beginning prediction version {model.__version__}")
+    logger.info(f"Beginning prediction with model {model.__version__}")
 
     # Load DICOM files into memory
     def load_binary(_dicom_file) -> io.BytesIO:
@@ -66,6 +73,7 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
     payload = {"dcmtk": not use_pydicom}
     prediction = model.run_model(dicom_data_list, payload=payload)
 
+    logger.info(f"Finished prediction version {model.__version__}")
     if output_path is not None:
         logger.info(f"Saving prediction to {output_path}")
         with open(output_path, 'w') as f:
@@ -78,7 +86,8 @@ def main():
     args = _get_parser().parse_args()
     logging_utils.configure_logger(args.loglevel)
 
-    prediction = predict(args.dicoms, args.config, args.output_path, args.use_pydicom)
+    prediction = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
+                         threads=args.threads)
     print(prediction)
 
 
