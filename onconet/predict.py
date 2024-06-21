@@ -52,14 +52,10 @@ def _get_parser():
 def _load_config(config_path, **kwargs):
     with open(config_path, 'r') as f:
         config = json.load(f)
-        path_keys = ["img_encoder_snapshot", "transformer_snapshot", "calibrator_path"]
-        for key in path_keys:
-            if key not in config:
-                continue
-            config[key] = os.path.expanduser(config[key])
-
         config.update(kwargs)
-    return argparse.Namespace(**config)
+    args = argparse.Namespace(**config)
+    args = MiraiModel.sanitize_paths(args)
+    return args
 
 
 def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False,
