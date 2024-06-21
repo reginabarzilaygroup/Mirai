@@ -10,8 +10,8 @@ from onconet.utils import logging_utils
 from onconet import __version__ as onconet_version
 
 script_path = os.path.abspath(__file__)
-script_dir = os.path.dirname(script_path)
-config_dir = os.path.join(script_dir, "configs")
+package_dir = os.path.dirname(script_path)
+config_dir = os.path.join(package_dir, "configs")
 DEFAULT_CONFIG_PATH = os.path.join(config_dir, "mirai_trained.json")
 
 
@@ -31,6 +31,10 @@ def _get_parser():
     parser.add_argument('--use-pydicom', default=False, action="store_true",
                         help="Use pydicom instead of dcmtk to read DICOM files.")
 
+    parser.add_argument('--dry-run', default=False, action="store_true",
+                        help="Load model and configuration, but don't actually do any predictions. "
+                             "Useful for checking environment and downloading models.")
+
     parser.add_argument('--threads', type=int, default=0,
                         help="Number of threads to use for PyTorch inference. "
                              "Default is 0 (use all available cores)."
@@ -40,27 +44,40 @@ def _get_parser():
                         default="INFO", dest="loglevel")
 
     parser.add_argument('--version', action='version', version=onconet_version)
-    parser.add_argument('dicoms', nargs="+", help="Path to DICOM files (from a single exam) to run inference on.")
+    parser.add_argument('dicoms', nargs="*", help="Path to DICOM files (from a single exam) to run inference on.")
 
     return parser
 
 
+def _load_config(config_path, **kwargs):
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+        path_keys = ["img_encoder_snapshot", "transformer_snapshot", "calibrator_path"]
+        for key in path_keys:
+            if key not in config:
+                continue
+            config[key] = os.path.expanduser(config[key])
+
+        config.update(kwargs)
+    return argparse.Namespace(**config)
+
+
 def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False,
-            threads=0):
+            threads=0, dry_run=False):
     logger = logging_utils.get_logger()
+
+    config = _load_config(config_path, threads=threads)
+    MiraiModel.download_if_needed(config)
+
+    model = MiraiModel(config)
+    if dry_run:
+        logger.info(f"Model version: {model.__version__}. Dry run complete.")
+        return
 
     assert len(dicom_files) == 4, "Expected 4 DICOM files, got {}".format(len(dicom_files))
     for dicom_file in dicom_files:
         assert dicom_file.endswith('.dcm'), f"DICOM files must have extension 'dcm'"
         assert os.path.exists(dicom_file), f"File not found: {dicom_file}"
-
-    with open(config_path, 'r') as f:
-        config = json.load(f)
-        config['threads'] = threads
-        # Convert from JSON dict to argparse.Namespace
-        config = argparse.Namespace(**config)
-
-    model = MiraiModel(config)
 
     logger.info(f"Beginning prediction with model {model.__version__}")
 
@@ -87,8 +104,9 @@ def main():
     logging_utils.configure_logger(args.loglevel)
 
     prediction = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
-                         threads=args.threads)
-    print(prediction)
+                         threads=args.threads, dry_run=args.dry_run)
+    if prediction:
+        print(prediction)
 
 
 if __name__ == "__main__":
