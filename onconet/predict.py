@@ -5,6 +5,7 @@ import json
 import os
 from typing import List
 
+import onconet.utils.dicom
 from onconet.models.mirai_full import MiraiModel
 from onconet.utils import logging_utils
 from onconet import __version__ as onconet_version
@@ -72,10 +73,16 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
 
     assert len(dicom_files) == 4, "Expected 4 DICOM files, got {}".format(len(dicom_files))
     for dicom_file in dicom_files:
-        assert dicom_file.endswith('.dcm'), f"DICOM files must have extension 'dcm'"
+        # assert dicom_file.endswith('.dcm'), f"DICOM files must have extension 'dcm'"
         assert os.path.exists(dicom_file), f"File not found: {dicom_file}"
 
     logger.info(f"Beginning prediction with model {model.__version__}")
+    logger.debug(f"Input files: {', '.join(dicom_files)}")
+
+    if not use_pydicom:
+        if not onconet.utils.dicom.is_dcmtk_installed():
+            logger.warning("DCMTK not found. Using pydicom.")
+            use_pydicom = True
 
     # Load DICOM files into memory
     def load_binary(_dicom_file) -> io.BytesIO:

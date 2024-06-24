@@ -86,6 +86,16 @@ def read_dicoms(dicom_list, limit=None):
     return dicoms
 
 
+def is_dcmtk_installed():
+    try:
+        result = subprocess.check_output(["dcmj2pnm"], stderr=subprocess.STDOUT)
+        return "Convert DICOM".lower() in result.decode('utf-8').lower()
+    except subprocess.CalledProcessError as e:
+        return False
+    except FileNotFoundError:
+        return False
+
+
 def dicom_to_image_dcmtk(dicom_path, image_path):
     """Converts a dicom image to a grayscale 16-bit png image using dcmtk.
 
