@@ -1,7 +1,7 @@
 import argparse
 import torch
 import os
-import pwd
+# import pwd
 
 EMPTY_NAME_ERR = 'Name of transformer or one of its arguments cant be empty\n\
                   Use "name/arg1=value/arg2=value" format'
@@ -358,7 +358,7 @@ def parse_args():
 
     args.cuda = args.cuda and torch.cuda.is_available()
     args.device = 'cuda' if args.cuda else 'cpu'
-    args.unix_username = pwd.getpwuid( os.getuid() )[0]
+    # args.unix_username = pwd.getpwuid( os.getuid() )[0]
 
 
     # learning initial state
@@ -379,6 +379,7 @@ def parse_args():
 
     return args
 
+
 def validate_args(args):
     """Checks whether certain args or arg combinations are valid.
 
@@ -396,6 +397,7 @@ def validate_args(args):
         raise ValueError(CONFLICTING_WEIGHTED_SAMPLING_ERR)
 
     assert args.ten_fold_test_index in range(-1, 10)
+
 
 def parse_list_args(args):
     """Converts list args to their appropriate data format.

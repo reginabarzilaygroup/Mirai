@@ -314,7 +314,7 @@ class Abstract_Onco_Dataset(data.Dataset):
 
         Note: Validation of cancer side is performed in the query scripts/from_db/cancer.py in OncoQueries
         '''
-        source_dir = '/home/{}'.format(self.args.unix_username) if self.args.is_ccds_server else ''
+        source_dir = os.environ.get("HOME", "") if self.args.is_ccds_server else ''
 
         def get_view(view_name):
             image_paths_w_view = [(view, image_path) for view, image_path in zip(exam['views'], exam['files']) if view.startswith(view_name)]
