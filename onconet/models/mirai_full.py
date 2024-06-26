@@ -92,7 +92,7 @@ class MiraiModel:
     """
     def __init__(self, config_obj):
         super().__init__()
-        self.args = config_obj
+        self.args = self.sanitize_paths(config_obj)
         self.__version__ = onconet_version
 
     def load_model(self):
@@ -270,7 +270,16 @@ class MiraiModel:
         return report
 
     @staticmethod
+    def sanitize_paths(args):
+        path_keys = ["img_encoder_snapshot", "transformer_snapshot", "calibrator_path"]
+        for key in path_keys:
+            if hasattr(args, key) and getattr(args, key) is not None:
+                setattr(args, key, os.path.expanduser(getattr(args, key)))
+        return args
+
+    @staticmethod
     def download_if_needed(args, cache_dir='./.cache'):
+        args = MiraiModel.sanitize_paths(args)
         if args.model_name == 'mirai_full':
             if os.path.exists(args.img_encoder_snapshot) and os.path.exists(args.transformer_snapshot):
                 return
@@ -284,13 +293,17 @@ class MiraiModel:
         get_logger().info(f"Local models not found, downloading snapshot from remote URI: {args.remote_snapshot_uri}")
         os.makedirs(cache_dir, exist_ok=True)
         tmp_zip_path = os.path.join(cache_dir, "snapshots.zip")
-        download_file(args.remote_snapshot_uri, tmp_zip_path)
+        if not os.path.exists(tmp_zip_path):
+            download_file(args.remote_snapshot_uri, tmp_zip_path)
 
         dest_dir = os.path.dirname(args.img_encoder_snapshot) if args.model_name == 'mirai_full' else os.path.dirname(args.snapshot)
 
         # Unzip file
+        get_logger().info(f"Saving models to {dest_dir}")
         with zipfile.ZipFile(tmp_zip_path, 'r') as zip_ref:
             zip_ref.extractall(dest_dir)
+
+        os.remove(tmp_zip_path)
 
 
 def get_default_device():
