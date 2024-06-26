@@ -199,23 +199,18 @@ class MiraiModel:
     def run_model(self, dicom_files: List[BinaryIO], payload=None):
         logger = get_logger()
         _torch_set_num_threads(getattr(self.args, 'threads', 0))
-
         if payload is None:
-            payload = {
-                'dcmtk': True
-            }
-        elif 'dcmtk' not in payload:
-            payload['dcmtk'] = True
+            payload = dict()
 
-        images = []
-
-        if payload['dcmtk']:
+        dcmtk_installed = onconet.utils.dicom.is_dcmtk_installed()
+        use_dcmtk = payload.get("dcmtk", True) and dcmtk_installed
+        if use_dcmtk:
             logger.info('Using dcmtk')
         else:
             logger.info('Using pydicom')
 
+        images = []
         dicom_info = {}
-
         for dicom in dicom_files:
             try:
                 view, side = onconet.utils.dicom.get_dicom_info(pydicom.dcmread(dicom))
@@ -246,7 +241,7 @@ class MiraiModel:
 
                 view, side = k
 
-                if payload['dcmtk']:
+                if use_dcmtk:
                     image = onconet.utils.dicom.dicom_to_image_dcmtk(dicom_path, image_path)
                     logger.debug('Image mode from dcmtk: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})

@@ -38,8 +38,8 @@ def _get_parser():
 
     parser.add_argument('--threads', type=int, default=0,
                         help="Number of threads to use for PyTorch inference. "
-                             "Default is 0 (use all available cores)."
-                             "Set to a negative number to use Pytorch default.")
+                             "Default is 0 (use all available cores). "
+                             "Set to a negative number to use Pytorch default. ")
 
     parser.add_argument('-l', '--log', '--loglevel', '--log-level',
                         default="INFO", dest="loglevel")
