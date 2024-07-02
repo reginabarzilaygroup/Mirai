@@ -3,6 +3,7 @@ import argparse
 import io
 import json
 import os
+import pprint
 from typing import List
 
 import onconet.utils.dicom
@@ -91,25 +92,26 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
 
     dicom_data_list = [load_binary(dicom_file) for dicom_file in dicom_files]
     payload = {"dcmtk": not use_pydicom}
-    prediction = model.run_model(dicom_data_list, payload=payload)
+    model_output_dict = model.run_model(dicom_data_list, payload=payload)
+    model_output_dict["modelVersion"] = model.__version__
 
     logger.info(f"Finished prediction version {model.__version__}")
     if output_path is not None:
         logger.info(f"Saving prediction to {output_path}")
         with open(output_path, 'w') as f:
-            json.dump(prediction, f, indent=2)
+            json.dump(model_output_dict, f, indent=2)
 
-    return prediction
+    return model_output_dict
 
 
 def main():
     args = _get_parser().parse_args()
     logging_utils.configure_logger(args.loglevel)
 
-    prediction = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
-                         threads=args.threads, dry_run=args.dry_run)
-    if prediction:
-        print(prediction)
+    model_output_dict = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
+                                threads=args.threads, dry_run=args.dry_run)
+    if model_output_dict:
+        pprint.pprint(model_output_dict)
 
 
 if __name__ == "__main__":
