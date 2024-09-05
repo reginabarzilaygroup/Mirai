@@ -109,7 +109,7 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     logger = get_logger()
 
     dcm_file = pydicom.dcmread(dicom_path)
-    manufacturer = dcm_file.Manufacturer
+    manufacturer = getattr(dcm_file, 'Manufacturer', 'Unknown Manufacturer')
     voi_lut_exists = (0x0028, 0x3010) in dcm_file and len(dcm_file[(0x0028, 0x3010)].value) > 0
 
     # SeriesDescription is not a required attribute, see
@@ -152,7 +152,8 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
     else:
         voi_type = 'LINEAR'
 
-    if 'GE' in dicom.Manufacturer:
+    manufacturer = getattr(dicom, 'Manufacturer', 'Unknown Manufacturer')
+    if 'GE' in manufacturer:
         logger.debug('GE dicom_to_arr conversion')
         image = apply_voi_lut(image.astype(np.uint16), dicom, index=index)
         num_bits = dicom[0x0028, 0x3010].value[index][0x0028, 0x3002].value[2]
