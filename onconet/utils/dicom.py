@@ -58,34 +58,6 @@ def apply_windowing(image, center, width, bit_depth=16, voi_type='LINEAR'):
     return image
 
 
-def read_dicoms(dicom_list, limit=None):
-    """Reads in a list DICOM files or file paths.
-
-    Args:
-        dicom_list (Iterable): List of file objects or file paths
-        limit (int, optional): Limit number of dicoms to be read
-
-    Returns:
-        list: List of pydicom Datasets
-    """
-    logger = get_logger()
-    dicoms = []
-    for f in dicom_list:
-        try:
-            dicom = pydicom.dcmread(f)
-        except Exception as e:
-            logger.warning(e)
-            continue
-
-        dicoms.append(dicom)
-
-        if limit is not None and len(dicoms) >= limit:
-            logger.debug("Limit of DICOM input reached: {}".format(limit))
-            break
-
-    return dicoms
-
-
 def is_dcmtk_installed():
     try:
         result = subprocess.check_output(["dcmj2pnm"], stderr=subprocess.STDOUT)
@@ -212,9 +184,8 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
         return image
 
 
-def get_dicom_info(dicom):
+def get_dicom_info(dicom: pydicom.Dataset):
     """Return tags for View Position and Image Laterality.
-    # TODO: This may be Mirai specific, move as needed.
 
     Args:
         dicom (pydicom.Dataset): Dataset object containing DICOM tags
