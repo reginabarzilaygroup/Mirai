@@ -202,6 +202,7 @@ class MiraiModel:
         if payload is None:
             payload = dict()
 
+        dcmread_force = payload.get("dcmread_force", False)
         dcmtk_installed = onconet.utils.dicom.is_dcmtk_installed()
         use_dcmtk = payload.get("dcmtk", True) and dcmtk_installed
         if use_dcmtk:
@@ -213,7 +214,8 @@ class MiraiModel:
         dicom_info = {}
         for dicom in dicom_files:
             try:
-                view, side = onconet.utils.dicom.get_dicom_info(pydicom.dcmread(dicom))
+                tmp_dcm = pydicom.dcmread(dicom, force=dcmread_force, stop_before_pixels=True)
+                view, side = onconet.utils.dicom.get_dicom_info(tmp_dcm)
 
                 if (view, side) in dicom_info:
                     prev_dicom = dicom_info[(view, side)]
@@ -247,7 +249,7 @@ class MiraiModel:
                     logger.debug('Image mode from dcmtk: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
                 else:
-                    dicom = pydicom.dcmread(dicom)
+                    dicom = pydicom.dcmread(dicom, force=dcmread_force)
                     image = onconet.utils.dicom.dicom_to_arr(dicom, pillow=True)
                     logger.debug('Image mode from dicom: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
