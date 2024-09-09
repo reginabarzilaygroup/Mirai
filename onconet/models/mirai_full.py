@@ -202,6 +202,7 @@ class MiraiModel:
         if payload is None:
             payload = dict()
 
+        dcmread_force = payload.get("dcmread_force", False)
         dcmtk_installed = onconet.utils.dicom.is_dcmtk_installed()
         use_dcmtk = payload.get("dcmtk", True) and dcmtk_installed
         if use_dcmtk:
@@ -213,7 +214,8 @@ class MiraiModel:
         dicom_info = {}
         for dicom in dicom_files:
             try:
-                view, side = onconet.utils.dicom.get_dicom_info(pydicom.dcmread(dicom))
+                tmp_dcm = pydicom.dcmread(dicom, force=dcmread_force, stop_before_pixels=True)
+                view, side = onconet.utils.dicom.get_dicom_info(tmp_dcm)
 
                 if (view, side) in dicom_info:
                     prev_dicom = dicom_info[(view, side)]
@@ -229,24 +231,25 @@ class MiraiModel:
 
         for k in dicom_info:
             try:
-                dicom_path = tempfile.NamedTemporaryFile(suffix='.dcm').name
-                image_path = tempfile.NamedTemporaryFile(suffix='.png').name
-                logger.debug("Temp DICOM path: {}".format(dicom_path))
-                logger.debug("Temp image path: {}".format(image_path))
-
                 dicom = dicom_info[k]
                 dicom.seek(0)
-                with open(dicom_path, 'wb') as f:
-                    f.write(dicom.read())
-
                 view, side = k
 
                 if use_dcmtk:
+                    dicom_file = tempfile.NamedTemporaryFile(suffix='.dcm')
+                    image_file = tempfile.NamedTemporaryFile(suffix='.png')
+                    dicom_path = dicom_file.name
+                    image_path = image_file.name
+                    logger.debug("Temp DICOM path: {}".format(dicom_path))
+                    logger.debug("Temp image path: {}".format(image_path))
+
+                    dicom_file.write(dicom.read())
+
                     image = onconet.utils.dicom.dicom_to_image_dcmtk(dicom_path, image_path)
                     logger.debug('Image mode from dcmtk: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
                 else:
-                    dicom = pydicom.dcmread(dicom_path)
+                    dicom = pydicom.dcmread(dicom, force=dcmread_force)
                     image = onconet.utils.dicom.dicom_to_arr(dicom, pillow=True)
                     logger.debug('Image mode from dicom: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})

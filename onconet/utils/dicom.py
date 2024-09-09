@@ -58,34 +58,6 @@ def apply_windowing(image, center, width, bit_depth=16, voi_type='LINEAR'):
     return image
 
 
-def read_dicoms(dicom_list, limit=None):
-    """Reads in a list DICOM files or file paths.
-
-    Args:
-        dicom_list (Iterable): List of file objects or file paths
-        limit (int, optional): Limit number of dicoms to be read
-
-    Returns:
-        list: List of pydicom Datasets
-    """
-    logger = get_logger()
-    dicoms = []
-    for f in dicom_list:
-        try:
-            dicom = pydicom.dcmread(f)
-        except Exception as e:
-            logger.warning(e)
-            continue
-
-        dicoms.append(dicom)
-
-        if limit is not None and len(dicoms) >= limit:
-            logger.debug("Limit of DICOM input reached: {}".format(limit))
-            break
-
-    return dicoms
-
-
 def is_dcmtk_installed():
     try:
         result = subprocess.check_output(["dcmj2pnm"], stderr=subprocess.STDOUT)
@@ -109,7 +81,7 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     logger = get_logger()
 
     dcm_file = pydicom.dcmread(dicom_path)
-    manufacturer = dcm_file.Manufacturer
+    manufacturer = getattr(dcm_file, 'Manufacturer', 'Unknown Manufacturer')
     voi_lut_exists = (0x0028, 0x3010) in dcm_file and len(dcm_file[(0x0028, 0x3010)].value) > 0
 
     # SeriesDescription is not a required attribute, see
@@ -152,7 +124,8 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
     else:
         voi_type = 'LINEAR'
 
-    if 'GE' in dicom.Manufacturer:
+    manufacturer = getattr(dicom, 'Manufacturer', 'Unknown Manufacturer')
+    if 'GE' in manufacturer:
         logger.debug('GE dicom_to_arr conversion')
         image = apply_voi_lut(image.astype(np.uint16), dicom, index=index)
         num_bits = dicom[0x0028, 0x3010].value[index][0x0028, 0x3002].value[2]
@@ -211,9 +184,8 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
         return image
 
 
-def get_dicom_info(dicom):
+def get_dicom_info(dicom: pydicom.Dataset):
     """Return tags for View Position and Image Laterality.
-    # TODO: This may be Mirai specific, move as needed.
 
     Args:
         dicom (pydicom.Dataset): Dataset object containing DICOM tags

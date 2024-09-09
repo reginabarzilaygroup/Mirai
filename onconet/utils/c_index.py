@@ -3,9 +3,12 @@
 ## Modified to use a time-dependent score
 
 import numpy as np
-from lifelines.utils.btree import _BTree
-from lifelines import KaplanMeierFitter
-import pdb
+
+try:
+    from lifelines.utils.btree import _BTree
+    from lifelines import KaplanMeierFitter
+except ImportError:
+    print(f"lifelines package not found. Please install lifelines package to use this module.")
 
 def get_censoring_dist(train_dataset):
     _dataset = train_dataset.dataset

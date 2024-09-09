@@ -48,7 +48,7 @@ class TestPredictionRegression(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_inference_inbreast(self):
+    def test_predict_inbreast(self):
         if not os.environ.get("MIRAI_TEST_RUN_REGRESSION", "false").lower() == "true":
             import pytest
             pytest.skip(f"Skipping long-running test in {type(self)}.")
@@ -175,7 +175,7 @@ class TestPredictionRegression(unittest.TestCase):
             with open(cur_pred_results, 'w') as f:
                 json.dump(all_results, f, indent=2)
 
-    def test_compare_inference_scores(self):
+    def test_compare_predict_scores(self):
         if not os.environ.get("MIRAI_TEST_RUN_REGRESSION", "false").lower() == "true":
             import pytest
             pytest.skip(f"Skipping long-running test in {type(self)}.")
@@ -231,9 +231,7 @@ class TestPredict(unittest.TestCase):
             with zipfile.ZipFile("mirai_demo_data.zip", 'r') as zip_ref:
                 zip_ref.extractall(self.data_dir)
 
-    def test_demo_data_v070(self):
-        # Can only unpickle the old calibration file with sklearn 0.23.2
-        import sklearn
+    def test_demo_data(self):
         data_dir = self.data_dir
         dicom_files = [f"{data_dir}/ccl1.dcm",
                        f"{data_dir}/ccr1.dcm",
@@ -242,30 +240,15 @@ class TestPredict(unittest.TestCase):
 
         import onconet.predict as predict
 
-        v07_config_path = os.path.join(predict.config_dir, "mirai_trained_v0.7.0.json")
-        prediction = predict.predict(dicom_files, v07_config_path)
+        actual_result = predict.predict(dicom_files, predict.DEFAULT_CONFIG_PATH)
         expected_result = {'predictions': {'Year 1': 0.0298, 'Year 2': 0.0483, 'Year 3': 0.0684, 'Year 4': 0.09, 'Year 5': 0.1016}}
 
-        self.assertEqual(prediction, expected_result, "Prediction does not match expected result.")
-
-    def test_demo_data(self):
-        data_dir = self.data_dir
-        dicom_files = [f"{data_dir}/ccl1.dcm",
-                       f"{data_dir}/ccr1.dcm",
-                       f"{data_dir}/mlol2.dcm",
-                       f"{data_dir}/mlor2.dcm"]
-
-        import scripts.inference as inference
-
-        prediction = inference.predict(dicom_files, inference.DEFAULT_CONFIG_PATH)
-        expected_result = {'predictions': {'Year 1': 0.0298, 'Year 2': 0.0483, 'Year 3': 0.0684, 'Year 4': 0.09, 'Year 5': 0.1016}}
-
-        self.assertEqual(prediction, expected_result, "Prediction does not match expected result.")
+        self.assertEqual(actual_result["predictions"], expected_result["predictions"], "Prediction does not match expected result.")
 
         # Try again with dicom files in a different order
         dicom_files = [dicom_files[2], dicom_files[3], dicom_files[0], dicom_files[1]]
-        prediction = inference.predict(dicom_files, inference.DEFAULT_CONFIG_PATH)
-        self.assertEqual(prediction, expected_result, "Prediction does not match expected result in new order.")
+        actual_result = predict.predict(dicom_files, predict.DEFAULT_CONFIG_PATH)
+        self.assertEqual(actual_result["predictions"], expected_result["predictions"], "Prediction does not match expected result in new order.")
 
 
 if __name__ == '__main__':
