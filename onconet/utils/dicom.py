@@ -213,7 +213,7 @@ def get_dicom_info(dicom: pydicom.Dataset):
 
     view_str = view_str.upper().replace("RIGHT", "").replace("LEFT", "").strip()
 
-    valid_view = ['CC', 'MLO']
+    valid_view = ['CC', 'MLO', 'ML']
     valid_side = ['R', 'L']
 
     if view_str not in valid_view:

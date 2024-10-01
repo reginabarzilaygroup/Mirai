@@ -227,7 +227,8 @@ class MiraiModel:
                 else:
                     dicom_info[(view, side)] = dicom
             except Exception as e:
-                logger.warning("{}: {}".format(type(e).__name__, e))
+                logger.warning(f"Error reading DICOM: {e}")
+                logger.warning(f"{traceback.format_exc()}")
 
         for k in dicom_info:
             try:
