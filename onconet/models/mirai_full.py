@@ -251,7 +251,8 @@ class MiraiModel:
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
                 else:
                     dicom = pydicom.dcmread(dicom, force=dcmread_force)
-                    image = onconet.utils.dicom.dicom_to_arr(dicom, pillow=True)
+                    window_method = payload.get("window_method", "minmax")
+                    image = onconet.utils.dicom.dicom_to_arr(dicom, window_method=window_method, pillow=True)
                     logger.debug('Image mode from dicom: {}'.format(image.mode))
                     images.append({'x': image, 'side_seq': side, 'view_seq': view})
             except Exception as e:

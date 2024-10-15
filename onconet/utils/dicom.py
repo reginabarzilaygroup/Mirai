@@ -115,7 +115,7 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     return Image.open(image_path)
 
 
-def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
+def dicom_to_arr(dicom, window_method='minmax', index=0, pillow=False, overlay=False):
     logger = get_logger()
     image = apply_modality_lut(dicom.pixel_array, dicom)
 
@@ -125,12 +125,12 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
         voi_type = 'LINEAR'
 
     manufacturer = getattr(dicom, 'Manufacturer', 'Unknown Manufacturer')
-    if 'GE' in manufacturer:
+    if 'GE' in manufacturer and (0x0028, 0x3010) in dicom:
         logger.debug('GE dicom_to_arr conversion')
         image = apply_voi_lut(image.astype(np.uint16), dicom, index=index)
         num_bits = dicom[0x0028, 0x3010].value[index][0x0028, 0x3002].value[2]
         image *= 2**(16 - num_bits)
-    elif method == 'auto':
+    elif window_method == 'auto':
         logger.debug('auto dicom_to_arr conversion')
         window_center = -600
         window_width = 1500
@@ -142,7 +142,7 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
         logger.debug(f"auto window center: {window_center}, window width: {window_width}")
 
         image = apply_windowing(image, window_center, window_width, voi_type=voi_type)
-    elif method == 'minmax':
+    elif window_method == 'minmax':
         logger.debug('minmax dicom_to_arr conversion')
         min_pixel = np.min(image)
         max_pixel = np.max(image)
@@ -152,7 +152,7 @@ def dicom_to_arr(dicom, method='minmax', index=0, pillow=False, overlay=False):
 
         image = apply_windowing(image, window_center, window_width, voi_type=voi_type)
     else:
-        raise ValueError(f"Invalid method: {method}")
+        raise ValueError(f"Invalid window_method: {window_method}")
 
     image = image.astype(np.uint16)
 

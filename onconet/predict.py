@@ -33,6 +33,9 @@ def _get_parser():
     parser.add_argument('--use-pydicom', default=False, action="store_true",
                         help="Use pydicom instead of dcmtk to read DICOM files.")
 
+    parser.add_argument('--window-method', default="minmax", choices=["minmax", "auto"],
+                        help="Windowing method to use for preprocessing with pydicom.")
+
     parser.add_argument('--dry-run', default=False, action="store_true",
                         help="Load model and configuration, but don't actually do any predictions. "
                              "Useful for checking environment and downloading models.")
@@ -61,7 +64,7 @@ def _load_config(config_path, **kwargs):
 
 
 def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False,
-            threads=0, dry_run=False):
+            threads=0, dry_run=False, window_method='minmax') -> dict:
     logger = logging_utils.get_logger()
 
     config = _load_config(config_path, threads=threads)
@@ -91,7 +94,7 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
             return io.BytesIO(_fi.read())
 
     dicom_data_list = [load_binary(dicom_file) for dicom_file in dicom_files]
-    payload = {"dcmtk": not use_pydicom}
+    payload = {"dcmtk": not use_pydicom, "window_method": window_method}
     model_output_dict = model.run_model(dicom_data_list, payload=payload)
     model_output_dict["modelVersion"] = model.__version__
 
