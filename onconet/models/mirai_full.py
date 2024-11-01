@@ -291,16 +291,21 @@ class MiraiModel:
         if getattr(args, 'remote_snapshot_uri', None) is None:
             return
 
-        get_logger().info(f"Local models not found, downloading snapshot from remote URI: {args.remote_snapshot_uri}")
+        logger = get_logger()
+        logger.info(f"Local models not found, downloading snapshot from remote URI: {args.remote_snapshot_uri}")
         os.makedirs(cache_dir, exist_ok=True)
         tmp_zip_path = os.path.join(cache_dir, "snapshots.zip")
         if not os.path.exists(tmp_zip_path):
+            logger.debug(f"Downloading snapshot to {tmp_zip_path}")
             download_file(args.remote_snapshot_uri, tmp_zip_path)
+        else:
+            logger.debug(f"Snapshot already downloaded to {tmp_zip_path}")
 
         dest_dir = os.path.dirname(args.img_encoder_snapshot) if args.model_name == 'mirai_full' else os.path.dirname(args.snapshot)
+        os.makedirs(dest_dir, exist_ok=True)
 
         # Unzip file
-        get_logger().info(f"Saving models to {dest_dir}")
+        logger.debug(f"Saving models to {dest_dir}")
         with zipfile.ZipFile(tmp_zip_path, 'r') as zip_ref:
             zip_ref.extractall(dest_dir)
 
