@@ -84,7 +84,7 @@ def wrap_model(model, allow_wrap_model, args, allow_data_parallel=True):
 def load_model(path, args, do_wrap_model=True):
     logging.getLogger("model_factory").debug('Loading model from [%s]...' % path)
     try:
-        model = torch.load(path, map_location='cpu')
+        model = torch.load(path, map_location='cpu', weights_only=False)
 
         if isinstance(model, dict):
             model = model['model']
