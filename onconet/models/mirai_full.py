@@ -205,7 +205,7 @@ class MiraiModel:
 
         dcmread_force = payload.get("dcmread_force", False)
         dcmtk_installed = onconet.utils.dicom.is_dcmtk_installed()
-        use_dcmtk = payload.get("dcmtk", True) and dcmtk_installed
+        use_dcmtk = payload.get("dcmtk", False) and dcmtk_installed
         if use_dcmtk:
             logger.info('Using dcmtk')
         else:

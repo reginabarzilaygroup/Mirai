@@ -30,8 +30,8 @@ def _get_parser():
     parser.add_argument('--output-path', default=None, dest="output_path",
                         help="Path to save prediction JSON. Prediction will be printed to stdout as well.")
 
-    parser.add_argument('--use-pydicom', default=False, action="store_true",
-                        help="Use pydicom instead of dcmtk to read DICOM files.")
+    parser.add_argument('--use-dcmtk', default=False, action="store_true",
+                        help="Use dcmtk to read DICOM files.")
 
     parser.add_argument('--window-method', default="minmax", choices=["minmax", "auto"],
                         help="Windowing method to use for preprocessing with pydicom.")
@@ -63,7 +63,7 @@ def _load_config(config_path, **kwargs):
     return args
 
 
-def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False,
+def predict(dicom_files: List[str], config_path: str, output_path=None, use_dcmtk=False,
             threads=0, dry_run=False, window_method='minmax') -> dict:
     logger = logging_utils.get_logger()
 
@@ -83,10 +83,10 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
     logger.info(f"Beginning prediction with model {model.__version__}")
     logger.debug(f"Input files: {', '.join(dicom_files)}")
 
-    if not use_pydicom:
+    if use_dcmtk:
         if not onconet.utils.dicom.is_dcmtk_installed():
             logger.warning("DCMTK not found. Using pydicom.")
-            use_pydicom = True
+            use_dcmtk = False
 
     # Load DICOM files into memory
     def load_binary(_dicom_file) -> io.BytesIO:
@@ -94,7 +94,7 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
             return io.BytesIO(_fi.read())
 
     dicom_data_list = [load_binary(dicom_file) for dicom_file in dicom_files]
-    payload = {"dcmtk": not use_pydicom, "window_method": window_method}
+    payload = {"dcmtk": use_dcmtk, "window_method": window_method}
     model_output_dict = model.run_model(dicom_data_list, payload=payload)
     model_output_dict["modelVersion"] = model.__version__
 
@@ -111,7 +111,7 @@ def main():
     args = _get_parser().parse_args()
     logging_utils.configure_logger(args.loglevel)
 
-    model_output_dict = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
+    model_output_dict = predict(args.dicoms, args.config, args.output_path, args.use_dcmtk,
                                 threads=args.threads, dry_run=args.dry_run)
     if model_output_dict:
         pprint.pprint(model_output_dict)

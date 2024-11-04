@@ -68,7 +68,7 @@ def is_dcmtk_installed():
         return False
 
 
-def dicom_to_image_dcmtk(dicom_path, image_path):
+def dicom_to_image_dcmtk(dicom_path, image_path, pillow=False):
     """Converts a dicom image to a grayscale 16-bit png image using dcmtk.
 
     Convert DICOM to PNG using dcmj2pnm (support.dcmtk.org/docs/dcmj2pnm.html)
@@ -112,7 +112,14 @@ def dicom_to_image_dcmtk(dicom_path, image_path):
     if output.stderr:
         logger.debug(output.stderr.decode('utf-8'))
 
-    return Image.open(image_path)
+    image = Image.open(image_path).convert('I')
+    if pillow:
+        image = np.array(image).astype(np.int32)
+        if image.shape[-1] in {3, 4}:
+            image = image.mean(axis=-1, dtype=np.int32)
+        return Image.fromarray(image, mode='I')
+    else:
+        return image
 
 
 def dicom_to_arr(dicom, window_method='minmax', index=0, pillow=False, overlay=False):

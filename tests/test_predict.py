@@ -55,7 +55,6 @@ class TestPredictionRegression(unittest.TestCase):
 
         import onconet.predict as predict
         import pandas as pd
-        import requests
 
         allow_resume = True
         save_view_tags = True
@@ -65,6 +64,7 @@ class TestPredictionRegression(unittest.TestCase):
         # True ->  send web requests to the ARK server (must be launched separately).
         # False -> to run inference directly.
         use_ark = os.environ.get("MIRAI_TEST_USE_ARK", "false").lower() == "true"
+        use_dcmtk = os.environ.get("MIRAI_TEST_USE_DCMTK", "false").lower() == "true"
 
         group_col = "Patient ID"
         filename_col = "Full File Name"
@@ -82,6 +82,7 @@ class TestPredictionRegression(unittest.TestCase):
         version = onconet.__version__
         out_fi_name = f"inbreast_predictions_v{version}.json"
         if use_ark:
+            import requests
             # Query the ARK server to get the version
             resp = requests.get("http://localhost:5000/info")
             version = resp.json()["data"]["apiVersion"]
@@ -150,7 +151,7 @@ class TestPredictionRegression(unittest.TestCase):
                 import requests
                 # Submit prediction to ARK server.
                 files = [('dicom', open(file_path, 'rb')) for file_path in dicom_file_paths]
-                r = requests.post("http://localhost:5000/dicom/files", data={"dcmtk": False}, files=files)
+                r = requests.post("http://localhost:5000/dicom/files", data={"dcmtk": use_dcmtk}, files=files)
                 _ = [f[1].close() for f in files]
                 if r.status_code != 200:
                     print(f"An error occurred while processing {patient_id}: {r.text}")
@@ -160,7 +161,7 @@ class TestPredictionRegression(unittest.TestCase):
                     prediction = r.json()["data"]
             else:
                 try:
-                    prediction = predict.predict(dicom_file_paths, predict.DEFAULT_CONFIG_PATH, use_pydicom=False)
+                    prediction = predict.predict(dicom_file_paths, predict.DEFAULT_CONFIG_PATH, use_dcmtk=use_dcmtk)
                 except Exception as e:
                     print(f"An error occurred while processing {patient_id}: {e}")
                     prediction["error"] = traceback.format_exc()
