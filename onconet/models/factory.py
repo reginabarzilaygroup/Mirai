@@ -83,39 +83,40 @@ def wrap_model(model, allow_wrap_model, args, allow_data_parallel=True):
 
 def load_model(path, args, do_wrap_model=True):
     logging.getLogger("model_factory").debug('Loading model from [%s]...' % path)
+
+    model = torch.load(path, map_location='cpu')
+
+    if isinstance(model, dict):
+        model = model['model']
+
+    if isinstance(model, nn.DataParallel):
+        model = model.module.cpu()
     try:
-        model = torch.load(path, map_location='cpu', weights_only=False)
-
-        if isinstance(model, dict):
-            model = model['model']
-
-        if isinstance(model, nn.DataParallel):
-            model = model.module.cpu()
-        try:
-           model.args.use_pred_risk_factors_at_test = args.use_pred_risk_factors_at_test 
-        except:
-           pass
-        try:
-            if hasattr(model, '_model'):
-                _model = model._model
-            else:
-                _model = model
-            _model.args.use_pred_risk_factors_at_test = args.use_pred_risk_factors_at_test
-            _model.args.use_precomputed_hiddens = args.use_precomputed_hiddens
-            _model.args.use_pred_risk_factors_if_unk = args.use_pred_risk_factors_if_unk
-            _model.args.pred_risk_factors = args.pred_risk_factors
-            _model.args.use_spatial_transformer = args.use_spatial_transformer
-        except:
-           pass
-        try:
-            args.img_only_dim = model._model.args.img_only_dim
-        except:
-            pass
-        if do_wrap_model:
-            model = {'model': wrap_model(model, True, args)}
+       model.args.use_pred_risk_factors_at_test = args.use_pred_risk_factors_at_test
     except:
-        raise Exception(
-            "Sorry, snapshot {} does not exist!".format(path))
+       pass
+
+    try:
+        if hasattr(model, '_model'):
+            _model = model._model
+        else:
+            _model = model
+        _model.args.use_pred_risk_factors_at_test = args.use_pred_risk_factors_at_test
+        _model.args.use_precomputed_hiddens = args.use_precomputed_hiddens
+        _model.args.use_pred_risk_factors_if_unk = args.use_pred_risk_factors_if_unk
+        _model.args.pred_risk_factors = args.pred_risk_factors
+        _model.args.use_spatial_transformer = args.use_spatial_transformer
+    except:
+       pass
+
+    try:
+        args.img_only_dim = model._model.args.img_only_dim
+    except:
+        pass
+
+    if do_wrap_model:
+        model = {'model': wrap_model(model, True, args)}
+
     return model
 
 def validate_block_layout(block_layout):
