@@ -207,9 +207,9 @@ class MiraiModel:
         dcmtk_installed = onconet.utils.dicom.is_dcmtk_installed()
         use_dcmtk = payload.get("dcmtk", False) and dcmtk_installed
         if use_dcmtk:
-            logger.info('Using dcmtk')
+            logger.debug('Using dcmtk')
         else:
-            logger.info('Using pydicom')
+            logger.debug('Using pydicom')
 
         images = []
         dicom_info = {}
