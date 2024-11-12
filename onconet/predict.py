@@ -116,7 +116,7 @@ def predict(dicom_files: List[str], config_path: str, output_path=None,
         for row in tqdm.tqdm(csv.DictReader(open(table))):
             dicom_files = [row[col] for col in path_columns]
             cur_model_output_dict = _predict_single(model, dicom_files, use_dcmtk, window_method)
-            output_row = {**row, "modelVersion": cur_model_output_dict["modelVersion"]}
+            output_row = {**row}
             for key, val in cur_model_output_dict["predictions"].items():
                 output_row[key] = val
             all_outputs.append(output_row)
@@ -126,6 +126,8 @@ def predict(dicom_files: List[str], config_path: str, output_path=None,
             return
 
         # Write to output path in CSV format
+        if output_path is None:
+            output_path = f"{table}.predictions.csv"
         if output_path is not None:
             logger.info(f"Saving prediction to {output_path}")
             fieldnames = all_outputs[0].keys()
