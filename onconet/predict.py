@@ -115,10 +115,16 @@ def predict(dicom_files: List[str], config_path: str, output_path=None,
         logger.debug(f"Reading table from {table}. Path columns are {path_columns}")
         for row in tqdm.tqdm(csv.DictReader(open(table))):
             dicom_files = [row[col] for col in path_columns]
-            cur_model_output_dict = _predict_single(model, dicom_files, use_dcmtk, window_method)
             output_row = {**row}
-            for key, val in cur_model_output_dict["predictions"].items():
-                output_row[key] = val
+
+            try:
+                cur_model_output_dict = _predict_single(model, dicom_files, use_dcmtk, window_method)
+                for key, val in cur_model_output_dict["predictions"].items():
+                    output_row[key] = val
+            except Exception as e:
+                logger.error(f"Error processing row {row}: {e}")
+                continue
+
             all_outputs.append(output_row)
 
         if len(all_outputs) == 0:
