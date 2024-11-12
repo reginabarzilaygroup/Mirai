@@ -1,4 +1,8 @@
 import logging
+import warnings
+
+warnings.filterwarnings("once", category=FutureWarning)
+
 import torch
 from torch import nn
 from onconet.models.inflate import inflate_model

@@ -1,3 +1,4 @@
+import functools
 import logging
 import os
 import pickle
@@ -95,8 +96,12 @@ class MiraiModel:
         super().__init__()
         self.args = self.sanitize_paths(config_obj)
         self.__version__ = onconet_version
+        self._model = None
 
     def load_model(self):
+        if self._model:
+            return self._model
+
         logger = get_logger()
         logger.debug("Loading model...")
         self.args.cuda = self.args.cuda and torch.cuda.is_available()
@@ -120,6 +125,7 @@ class MiraiModel:
             logger.debug("Exception caught, skipping precomputed hiddens")
             pass
 
+        self._model = model
         return model
 
     def load_calibrator(self):
