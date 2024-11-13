@@ -97,6 +97,7 @@ class MiraiModel:
         self.args = self.sanitize_paths(config_obj)
         self.__version__ = onconet_version
         self._model = None
+        self._calibrator = None
 
     def load_model(self):
         if self._model:
@@ -129,6 +130,9 @@ class MiraiModel:
         return model
 
     def load_calibrator(self):
+        if self._calibrator:
+            return self._calibrator
+
         get_logger().debug("Loading calibrator...")
 
         # Load calibrator if desired
@@ -138,6 +142,7 @@ class MiraiModel:
         else:
             calibrator = None
 
+        self._calibrator = calibrator
         return calibrator
 
     def process_image_joint(self, batch, model, calibrator, risk_factor_vector=None):
