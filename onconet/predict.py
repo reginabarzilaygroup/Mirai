@@ -111,6 +111,9 @@ def predict(dicom_files: List[str], config_path: str, output_path=None,
     if table is not None:
         # Predict on multiple exams
         all_outputs = []
+        # Write to output path in CSV format
+        if output_path is None:
+            output_path = f"{table}.predictions.csv"
         path_columns = ["path1", "path2", "path3", "path4"]
         logger.debug(f"Reading table from {table}. Path columns are {path_columns}")
         for row in tqdm.tqdm(csv.DictReader(open(table))):
@@ -123,7 +126,6 @@ def predict(dicom_files: List[str], config_path: str, output_path=None,
                     output_row[key] = val
             except Exception as e:
                 logger.error(f"Error processing row {row}: {e}")
-                continue
 
             all_outputs.append(output_row)
 
@@ -131,9 +133,6 @@ def predict(dicom_files: List[str], config_path: str, output_path=None,
             logger.warning("Table empty; No rows processed.")
             return
 
-        # Write to output path in CSV format
-        if output_path is None:
-            output_path = f"{table}.predictions.csv"
         if output_path is not None:
             logger.info(f"Saving prediction to {output_path}")
             fieldnames = all_outputs[0].keys()
