@@ -133,7 +133,8 @@ def _predict_multiprocess(table_rows: List[Dict], model, use_dcmtk, window_metho
     logger = logging_utils.get_logger()
     devices = onconet.utils.device_utils.get_available_devices(max_devices=max_processes)
     if len(devices) < max_processes:
-        devices = [dd for dd in itertools.cycle(devices) for _ in range(max_processes)]
+        dev_cycle = itertools.cycle(devices)
+        devices = [next(dev_cycle) for _ in range(max_processes)]
     num_processes = len(devices)
 
     table_rows = list(table_rows)
