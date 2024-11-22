@@ -8,6 +8,8 @@ import os
 import pprint
 from typing import List, Dict
 
+import torch
+import torch.multiprocessing
 import tqdm
 
 import onconet.utils.dicom
@@ -95,7 +97,8 @@ def _predict_single(dicom_files: List[str], model, use_dcmtk, window_method):
 
     dicom_data_list = [_load_binary(dicom_file) for dicom_file in dicom_files]
     payload = {"dcmtk": use_dcmtk, "window_method": window_method}
-    model_output_dict = model.run_model(dicom_data_list, payload=payload)
+    with torch.no_grad():
+        model_output_dict = model.run_model(dicom_data_list, payload=payload)
     model_output_dict["modelVersion"] = model.__version__
     return model_output_dict
 
@@ -128,7 +131,6 @@ def _predict_multiple(table, model, use_dcmtk, window_method, device=None):
 
 def _predict_multiprocess(table_rows: List[Dict], model, use_dcmtk, window_method, max_processes=None):
     import numpy as np
-    import torch.multiprocessing
     torch.multiprocessing.set_start_method("spawn")
     logger = logging_utils.get_logger()
     devices = onconet.utils.device_utils.get_available_devices(max_devices=max_processes)
