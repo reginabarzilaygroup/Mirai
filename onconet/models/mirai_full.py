@@ -98,6 +98,19 @@ class MiraiModel:
         self.__version__ = onconet_version
         self._model = None
         self._calibrator = None
+        self._device = None
+
+    def to(self, device):
+        if self._model:
+            self._model.to(device)
+            self._model.transformer.to(device)
+        self._device = device
+        return self
+
+    def get_device(self):
+        if self._device:
+            return self._device
+        return get_default_device()
 
     def load_model(self):
         if self._model:
@@ -150,10 +163,9 @@ class MiraiModel:
         logger.debug("Getting predictions...")
 
         if self.args.cuda:
-            device = get_default_device()
+            device = self.get_device()
             logger.debug(f"Inference with {device}")
-            for obj in [model, model.transformer]:
-                obj.to(device)
+            self.to(device)
             for key, val in batch.items():
                 batch[key] = val.to(device)
         else:
@@ -226,13 +238,13 @@ class MiraiModel:
         dicom_info = {}
         for dicom in dicom_files:
             try:
-                tmp_dcm = pydicom.dcmread(dicom, force=dcmread_force, stop_before_pixels=True)
-                view, side = onconet.utils.dicom.get_dicom_info(tmp_dcm)
+                cur_dicom = pydicom.dcmread(dicom, force=dcmread_force, stop_before_pixels=True)
+                view, side = onconet.utils.dicom.get_dicom_info(cur_dicom)
 
                 if (view, side) in dicom_info:
-                    prev_dicom = dicom_info[(view, side)]
+                    prev_dicom = pydicom.dcmread(dicom_info[(view, side)], force=dcmread_force, stop_before_pixels=True)
                     prev = int(prev_dicom[0x0008, 0x0023].value + prev_dicom[0x0008, 0x0033].value)
-                    cur = int(dicom[0x0008, 0x0023].value + dicom[0x0008, 0x0033].value)
+                    cur = int(cur_dicom[0x0008, 0x0023].value + cur_dicom[0x0008, 0x0033].value)
 
                     if cur > prev:
                         dicom_info[(view, side)] = dicom

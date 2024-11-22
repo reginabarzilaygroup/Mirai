@@ -1,7 +1,7 @@
 import logging
 import warnings
 
-warnings.filterwarnings("once", category=FutureWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 import torch
 from torch import nn

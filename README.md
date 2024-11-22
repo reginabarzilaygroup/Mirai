@@ -59,12 +59,12 @@ It is recommended to use [Ark](https://github.com/reginabarzilaygroup/ark), our 
 Alternatively, one can use the following command to run Mirai directly:
 
 ```bash
-python3 scripts/inference.py ccl1.dcm ccr1.dcm mlol2.dcm mlor2.dcm
+python3 onconet/predict.py ccl1.dcm ccr1.dcm mlol2.dcm mlor2.dcm
 ```
 
 Where `ccl1.dcm`, `ccr1.dcm`, `mlol2.dcm`, `mlor2.dcm` are the paths to the dicom files for the left CC, right CC, left MLO, and right MLO views of the mammogram, respectively. The output will be a risk assessment for the patient in the form of a JSON file.
 
-See `run_inference_demo.sh` for a longer example
+See `run_predict_demo.sh` for a longer example
 
 ### How validate the model on a large dataset
 To validate Mirai, you can use the following command: `sh demo/validate.sh`
