@@ -201,10 +201,6 @@ def get_dicom_info(dicom: pydicom.Dataset):
         int: binary integer 0 or 1 corresponding to the type of View Position
         int: binary integer 0 or 1 corresponding to the type of Image Laterality
     """
-    if not hasattr(dicom, 'ViewPosition'):
-        raise AttributeError('ViewPosition does not exist in DICOM metadata')
-
-    view_str = dicom.ViewPosition
 
     # Have seen cases where ImageLaterality is not present in DICOM metadata,
     # and the relevant information is in the ViewPosition tag. Check for this.
