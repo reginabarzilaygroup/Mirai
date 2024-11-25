@@ -191,6 +191,29 @@ def dicom_to_arr(dicom, window_method='minmax', index=0, pillow=False, overlay=F
         return image
 
 
+def dicom_to_arr_pydicom(dicom, index=0, pillow=False):
+    logger = get_logger()
+
+    presentation = 'IDENTITY'
+    if (0x2050, 0x0020) in dicom:
+        presentation = dicom[0x2050, 0x0020].value
+
+    pixels = dicom.pixel_array
+
+    if presentation == 'INVERSE':
+        logger.debug("Using Inverse Presentation")
+        pixels = (dicom.WindowCenter + dicom.WindowWidth) - pixels
+    image = apply_voi_lut(pixels, dicom, index)
+
+    if pillow:
+        image = image.astype(np.int32)
+        if image.shape[-1] in {3, 4}:
+            image = image.mean(axis=-1, dtype=np.int32)
+        return Image.fromarray(image, mode='I')
+    else:
+        return image
+
+
 def get_dicom_info(dicom: pydicom.Dataset):
     """Return tags for View Position and Image Laterality.
 
@@ -201,10 +224,19 @@ def get_dicom_info(dicom: pydicom.Dataset):
         int: binary integer 0 or 1 corresponding to the type of View Position
         int: binary integer 0 or 1 corresponding to the type of Image Laterality
     """
-    if not hasattr(dicom, 'ViewPosition'):
-        raise AttributeError('ViewPosition does not exist in DICOM metadata')
 
-    view_str = dicom.ViewPosition
+    # Some cases (FUJIFILM) have cases where view position is in
+    # Acquisition Device Processing Description (0018, 1400)
+    # rather than standard DICOM tag
+    if not hasattr(dicom, 'ViewPosition'):
+        if 'CC' in dicom[0x0018, 0x1400].value:  # Acquisition Device Processing Description
+            view_str = 'CC'
+        elif 'MLO' in dicom[0x0018, 0x1400].value:
+            view_str = 'MLO'
+        else:
+            raise AttributeError('ViewPosition does not exist in DICOM metadata')
+    else:
+        view_str = dicom.ViewPosition
 
     # Have seen cases where ImageLaterality is not present in DICOM metadata,
     # and the relevant information is in the ViewPosition tag. Check for this.
