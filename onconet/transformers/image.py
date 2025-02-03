@@ -340,10 +340,11 @@ class Align_To_Left(Abstract_transformer):
     def __call__(self, img, additional=None):
         left = img.copy()
         left.paste(self.black, mask = self.mask_l)
-        left_sum = np.array(left.getdata()).sum()
+        # Cast to float64 to avoid overflow
+        left_sum = np.array(left.getdata(), dtype=np.float64).sum()
         right = img.copy()
         right.paste(self.black, mask = self.mask_r)
-        right_sum = np.array(right.getdata()).sum()
+        right_sum = np.array(right.getdata(), dtype=np.float64).sum()
         if right_sum > left_sum:
             flip_region_coords_left_right(additional)
             return img.transpose(Image.FLIP_LEFT_RIGHT)
