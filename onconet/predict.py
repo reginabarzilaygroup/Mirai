@@ -2,14 +2,20 @@
 import argparse
 import io
 import json
+import logging
 import os
 import pprint
+import sys
 from typing import List
 
-import onconet.utils.dicom
-from onconet.models.mirai_full import MiraiModel
-from onconet.utils import logging_utils
-from onconet import __version__ as onconet_version
+try:
+    import onconet.utils.dicom
+    from onconet.models.mirai_full import MiraiModel
+    from onconet.utils import logging_utils
+    from onconet import __version__ as onconet_version
+except ImportError as e:
+    print(f"Error importing onconet modules. Only predictions with ark will be possible.")
+    onconet_version = "Onconet not installed"
 
 script_path = os.path.abspath(__file__)
 package_dir = os.path.dirname(script_path)
@@ -20,6 +26,23 @@ DEFAULT_CONFIG_PATH = os.path.join(config_dir, "mirai_trained.json")
 __doc__ = """
 Use Mirai to run inference on a single exam.
 """
+
+def _configure_logger(loglevel):
+    """
+    Configure the logger based on the provided log level.
+    """
+    if "logging_utils" in sys.modules:
+        logging_utils.configure_logger(loglevel)
+    else:
+        # Fallback to basic logging if logging_utils fails
+        logging.basicConfig(level=loglevel)
+
+def _get_logger():
+    if "logging_utils" in sys.modules:
+        return logging_utils.get_logger()
+    else:
+        # Fallback to basic logging if logging_utils fails
+        return logging.getLogger(__name__)
 
 
 def _get_parser():
@@ -39,6 +62,12 @@ def _get_parser():
     parser.add_argument('--dry-run', default=False, action="store_true",
                         help="Load model and configuration, but don't actually do any predictions. "
                              "Useful for checking environment and downloading models.")
+
+    parser.add_argument('--use-ark', default=False, action="store_true",
+                        help="Use ARK server for prediction.")
+
+    parser.add_argument('--ark-host', default="localhost", help="Hostname of the ARK server. Default is 'localhost'.")
+    parser.add_argument('--ark-port', type=int, default=5000, help="Port of the ARK server. Default is 5000.")
 
     parser.add_argument('--threads', type=int, default=0,
                         help="Number of threads to use for PyTorch inference. "
@@ -62,6 +91,53 @@ def _load_config(config_path, **kwargs):
     args = MiraiModel.sanitize_paths(args)
     return args
 
+def predict_ark(dicom_files: List[str], output_path=None, use_pydicom=False,
+                ark_host="localhost", ark_port=5000, window_method='minmax'):
+    """
+    Run prediction using an ARK server.
+
+    :param dicom_files: List of DICOM file paths.
+    :param output_path: Path to save prediction JSON.
+    :param use_pydicom: Whether to use pydicom for reading DICOM files.
+    :param ark_host: Hostname of the ARK server. Default is "localhost".
+    :param ark_port: Port of the ARK server. Default is 5000.
+    """
+
+    logger = _get_logger()
+
+    try:
+        import requests
+    except ImportError:
+        logger.error("requests module is not installed. Please install it to use ARK server.")
+        return {"error": "requests module is not installed."}
+
+    assert len(dicom_files) == 4, "Expected 4 DICOM files, got {}".format(len(dicom_files))
+
+    try:
+        resp = requests.get(f"http://{ark_host}:{ark_port}/info")
+        model_info = resp.json()["data"]
+    except requests.RequestException as e:
+        logger.error(f"Failed to get model info from ARK server: {e}")
+        return {"error": f"Failed to get model info from ARK server: {e}"}
+
+    # Submit prediction to ARK server.
+    files = [('dicom', open(file_path, 'rb')) for file_path in dicom_files]
+    payload = {"dcmtk": not use_pydicom, "window_method": window_method}
+    r = requests.post(f"http://{ark_host}:{ark_port}/dicom/files", data=payload, files=files)
+    _ = [f[1].close() for f in files]
+    model_output_dict = {"info": model_info}
+    if r.status_code != 200:
+        logger.error(f"An error occurred while processing {dicom_files}: {r.text}")
+        model_output_dict["error"] = r.text
+    else:
+        model_output_dict.update(r.json())
+
+    if output_path is not None:
+        logger.info(f"Saving prediction to {output_path}")
+        with open(output_path, 'w') as f:
+            json.dump(model_output_dict, f, indent=2)
+
+    return model_output_dict
 
 def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydicom=False,
             threads=0, dry_run=False, window_method='minmax') -> dict:
@@ -109,9 +185,14 @@ def predict(dicom_files: List[str], config_path: str, output_path=None, use_pydi
 
 def main():
     args = _get_parser().parse_args()
-    logging_utils.configure_logger(args.loglevel)
+    _configure_logger(args.loglevel)
 
-    model_output_dict = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
+    if args.use_ark:
+        model_output_dict = predict_ark(args.dicoms, args.output_path, args.use_pydicom,
+                                ark_host=args.ark_host, ark_port=args.ark_port,
+                                window_method=args.window_method)
+    else:
+        model_output_dict = predict(args.dicoms, args.config, args.output_path, args.use_pydicom,
                                 threads=args.threads, dry_run=args.dry_run)
     if model_output_dict:
         pprint.pprint(model_output_dict)
