@@ -1,4 +1,32 @@
 #!/usr/bin/env python
+
+__doc__ = """
+Bulk prediction and DICOM table builder for Mirai.
+
+This script provides two main commands:
+
+1. build-dicom-table: Recursively search a base directory for mammogram exams (folders containing exactly 4 DICOM files),
+ and write their paths to a CSV table.
+2. predict-bulk: Run predictions for each row in a CSV table (as produced by build-dicom-table), saving results as predictions.json in each exam directory,
+ and writing a summary score table as CSV.
+
+Minimal usage example:
+
+# Build a table of DICOM file paths
+$ python predict_bulk.py build-dicom-table --base-dir /path/to/data --file-table dicom_table.csv
+
+# Run predictions in bulk and write scores to a CSV
+$ python predict_bulk.py predict-bulk --file-table dicom_table.csv --score-table scores.csv
+
+# The above will run Mirai `predict.py` in the current environment.
+
+# If you have an Ark server running, you can use it instead by adding `--use-ark` and specifying the host and port.
+# See https://github.com/reginabarzilaygroup/Mirai/wiki for more details on how to use Mirai and the Ark server.
+# For example:
+$ python predict_bulk.py predict-bulk --file-table dicom_table.csv --score-table scores.csv --use-ark --ark-host localhost --ark-port 5000
+
+"""
+
 import argparse
 import csv
 import json
@@ -110,7 +138,10 @@ def write_results_to_csv(results, output_path):
                 writer.writerow(r)
 
 def main():
-    parser = argparse.ArgumentParser(description="Bulk prediction and DICOM table builder.")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument('-l', '--log-level', '--loglevel', default='INFO', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
                         help='Set the logging level.', dest="loglevel")
     subparsers = parser.add_subparsers(dest='command', required=True)
